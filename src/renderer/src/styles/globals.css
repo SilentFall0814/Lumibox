@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 自定义字体:PingFang SC Semibold,应用于全软件所有文字 */
+/* font-weight: 100 900 让所有字重都用此字体文件,确保统一 */
+@font-face {
+  font-family: 'PingFang SC';
+  src: url('../assets/PingFangSC-Semibold.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html, body, #root {
+    @apply h-full;
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    font-family: 'PingFang SC', sans-serif;
+    font-size: 14px;
+    color: #1f2937;
+    background-color: #ffffff;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    overflow: hidden;
+  }
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #e5e7eb;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #d1d5db;
+}
+
+/* 图片网格卡片 hover 效果 */
+.image-card {
+  transition: all 0.15s ease;
+}
+.image-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.image-card.selected {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+}
+
+/* 拖拽悬停高亮 */
+.drop-zone-active {
+  background-color: #eff6ff;
+  outline: 2px dashed #2563eb;
+  outline-offset: -8px;
+}

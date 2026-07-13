@@ -1,0 +1,22 @@
+node_modules/
+out/
+.cache/
+.webpack/
+dist/
+*.log
+.DS_Store
+# IDE
+.vscode/
+.idea/
+*.swp
+# 系统
+Thumbs.db
+desktop.ini
+# 测试临时产物
+coverage/
+.nyc_output/
+
+# 根目录冗余大文件(已复制到 assets/ 或 build/ 下,运行时不需要)
+/PingFangSC-Semibold.ttf
+/APP_Logo.png
+/build/APP_Logo_rounded.png
