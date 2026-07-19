@@ -1,88 +1,49 @@
-import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto';
 import { getLibraryRoot, assertWithinLibrary } from './path-guard';
 import { isVideoFile } from './fs-ops';
 
-const THUMB_SIZE = 256;
-const THUMB_QUALITY = 80;
+/**
+ * 缩略图策略(v4,零磁盘缓存):
+ * - 图片:直接返回 lumibox://img/<相对路径>,由协议层流式返回原图
+ *   依赖 Chromium 浏览器 HTTP 缓存(max-age=7天)加速二次访问
+ * - 视频:返回 lumibox://vframe/<imageId>,由协议层调用 ffmpeg 实时抓帧
+ *   主进程内存 Map 缓存抓帧结果(Buffer),同一视频二次访问秒返回
+ *
+ * 优势:
+ *   1. 不产生任何磁盘缓存文件,保持库目录干净
+ *   2. 浏览器 HTTP 缓存 + 主进程内存缓存双重加速
+ *   3. 应用退出后内存自动释放,无残留
+ */
 
-export function getCacheKey(srcAbsolutePath: string): string {
-  return crypto.createHash('sha256').update(srcAbsolutePath).digest('hex');
-}
-
-export function getCachePath(srcAbsolutePath: string): string {
-  const root = getLibraryRoot();
-  return path.join(root, '.lumibox', 'cache', `${getCacheKey(srcAbsolutePath)}.webp`);
-}
-
-export async function getOrCreateThumbnail(srcAbsolutePath: string): Promise<string> {
+/**
+ * 获取缩略图 URL
+ * - 图片:返回 lumibox://img/<相对路径>
+ * - 视频:返回 lumibox://vframe/<imageId>
+ */
+export async function getOrCreateThumbnail(
+  srcAbsolutePath: string,
+  options?: { videoThumbnailTime?: number; videoDuration?: number; imageId?: number }
+): Promise<string> {
   assertWithinLibrary(srcAbsolutePath);
-  const cachePath = getCachePath(srcAbsolutePath);
-  if (fs.existsSync(cachePath)) {
-    return readFileAsDataUrl(cachePath);
-  }
-  await fs.promises.mkdir(path.dirname(cachePath), { recursive: true });
+  const root = getLibraryRoot();
+  const rel = path.relative(root, srcAbsolutePath).replace(/\\/g, '/');
 
   if (isVideoFile(srcAbsolutePath)) {
-    // 视频用 ffmpeg 截取第 1 秒作为缩略图
-    await generateVideoThumbnail(srcAbsolutePath, cachePath);
-  } else {
-    // 图片用 sharp 生成缩略图
-    const sharp = require('sharp');
-    await sharp(srcAbsolutePath)
-      .resize(THUMB_SIZE, THUMB_SIZE, { fit: 'inside', withoutEnlargement: true })
-      .webp({ quality: THUMB_QUALITY })
-      .toFile(cachePath);
+    // 视频:走 vframe 协议,主进程内存缓存抓帧结果
+    const imageId = options?.imageId;
+    if (imageId == null || imageId <= 0) {
+      // 无 imageId 时退回到 img 协议(虽无缩略图但能加载)
+      return `lumibox://img/${encodeURIComponent(rel)}`;
+    }
+    return `lumibox://vframe/${imageId}`;
   }
-  return readFileAsDataUrl(cachePath);
-}
 
-/** 用 ffmpeg 截取视频第 1 秒画面作为缩略图 */
-async function generateVideoThumbnail(srcPath: string, outPath: string): Promise<void> {
-  const ffmpegPath = require('ffmpeg-static');
-  const ffmpeg = require('fluent-ffmpeg');
-  ffmpeg.setFfmpegPath(ffmpegPath);
-  return new Promise((resolve, reject) => {
-    ffmpeg(srcPath)
-      .screenshots({
-        timestamps: ['00:00:01'],
-        filename: path.basename(outPath),
-        folder: path.dirname(outPath),
-        size: `${THUMB_SIZE}x${THUMB_SIZE}`
-      })
-      .on('end', () => {
-        // ffmpeg 默认输出 png,用 sharp 转成 webp 减小体积
-        const pngPath = outPath.replace(/\.webp$/, '.png');
-        if (fs.existsSync(pngPath)) {
-          try {
-            const sharp = require('sharp');
-            sharp(pngPath)
-              .resize(THUMB_SIZE, THUMB_SIZE, { fit: 'inside', withoutEnlargement: true })
-              .webp({ quality: THUMB_QUALITY })
-              .toFile(outPath)
-              .then(() => {
-                fs.unlinkSync(pngPath);
-                resolve();
-              })
-              .catch(() => {
-                // 转换失败则直接用 png
-                fs.renameSync(pngPath, outPath);
-                resolve();
-              });
-          } catch {
-            fs.renameSync(pngPath, outPath);
-            resolve();
-          }
-        } else {
-          resolve();
-        }
-      })
-      .on('error', (err: Error) => reject(err));
-  });
-}
-
-function readFileAsDataUrl(filePath: string): string {
-  const buf = fs.readFileSync(filePath);
-  return `data:image/webp;base64,${buf.toString('base64')}`;
+  // 图片:走 thumb 协议,主进程用 nativeImage 缩放到 400×300 JPEG(内存 LRU 缓存)
+  // 避免网格视图同时加载上百张多兆原图导致卡顿
+  const imageId = options?.imageId;
+  if (imageId != null && imageId > 0) {
+    return `lumibox://thumb/${imageId}`;
+  }
+  // 无 imageId 时退回到 img 协议(如未在 DB 中的临时文件)
+  return `lumibox://img/${encodeURIComponent(rel)}`;
 }

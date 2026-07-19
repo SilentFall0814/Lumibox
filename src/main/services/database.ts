@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3';
 import type { Database as DB } from 'better-sqlite3';
-import type { ImageRecord, ImagePage, Tag, VirtualAlbum, TrashItem } from '../../shared/types';
+import type { ImageRecord, ImagePage, TrashItem } from '../../shared/types';
 
 let db: DB | null = null;
 
@@ -20,13 +20,10 @@ export function closeDatabase(): void {
   }
 }
 
-export function isDbOpen(): boolean {
-  return db !== null;
-}
-
 export function initSchema(): void {
   if (!db) throw new Error('数据库未打开');
   // 1. 创建表(新库会包含 type/duration 列;旧库表已存在则跳过)
+  // 注:旧的 tags/image_tags/albums_virtual/album_images 表已随标签系统与虚拟相册系统移除
   db.exec(`
     CREATE TABLE IF NOT EXISTS images (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,28 +41,6 @@ export function initSchema(): void {
       duration REAL,
       indexed_at INTEGER NOT NULL
     );
-    CREATE TABLE IF NOT EXISTS tags (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT UNIQUE NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS image_tags (
-      image_id INTEGER NOT NULL,
-      tag_id INTEGER NOT NULL,
-      PRIMARY KEY (image_id, tag_id),
-      FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE,
-      FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
-    );
-    CREATE TABLE IF NOT EXISTS albums_virtual (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE
-    );
-    CREATE TABLE IF NOT EXISTS album_images (
-      album_id INTEGER NOT NULL,
-      image_id INTEGER NOT NULL,
-      PRIMARY KEY (album_id, image_id),
-      FOREIGN KEY (album_id) REFERENCES albums_virtual(id) ON DELETE CASCADE,
-      FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE
-    );
     CREATE TABLE IF NOT EXISTS trash (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       image_id INTEGER,
@@ -77,8 +52,6 @@ export function initSchema(): void {
     );
     CREATE INDEX IF NOT EXISTS idx_images_path ON images(path);
     CREATE INDEX IF NOT EXISTS idx_images_created_at ON images(created_at);
-    CREATE INDEX IF NOT EXISTS idx_image_tags_tag_id ON image_tags(tag_id);
-    CREATE INDEX IF NOT EXISTS idx_album_images_album ON album_images(album_id);
   `);
   // 2. 兼容旧库:若 images 表缺少 type/duration 列则补上(必须在建索引前)
   try {
@@ -86,6 +59,16 @@ export function initSchema(): void {
   } catch { /* 列已存在 */ }
   try {
     db.exec(`ALTER TABLE images ADD COLUMN duration REAL`);
+  } catch { /* 列已存在 */ }
+  // 2.1 兼容旧库:补充视频元数据列(fps/bitrate/video_thumbnail_time)
+  try {
+    db.exec(`ALTER TABLE images ADD COLUMN fps REAL`);
+  } catch { /* 列已存在 */ }
+  try {
+    db.exec(`ALTER TABLE images ADD COLUMN bitrate INTEGER`);
+  } catch { /* 列已存在 */ }
+  try {
+    db.exec(`ALTER TABLE images ADD COLUMN video_thumbnail_time REAL`);
   } catch { /* 列已存在 */ }
   // 3. type 列存在后再创建索引
   db.exec(`CREATE INDEX IF NOT EXISTS idx_images_type ON images(type);`);
@@ -102,11 +85,12 @@ export function insertImage(data: {
   type?: 'image' | 'video'; duration?: number;
   hash?: string; exifCamera?: string; exifLens?: string; exifDate?: number;
   width?: number; height?: number;
+  fps?: number; bitrate?: number; videoThumbnailTime?: number;
 }): number {
   const d = requireDb();
   const stmt = d.prepare(`
-    INSERT OR IGNORE INTO images (path, name, type, created_at, size, duration, hash, exif_camera, exif_lens, exif_date, width, height, indexed_at)
-    VALUES (@path, @name, @type, @createdAt, @size, @duration, @hash, @exifCamera, @exifLens, @exifDate, @width, @height, @indexedAt)
+    INSERT OR IGNORE INTO images (path, name, type, created_at, size, duration, hash, exif_camera, exif_lens, exif_date, width, height, fps, bitrate, video_thumbnail_time, indexed_at)
+    VALUES (@path, @name, @type, @createdAt, @size, @duration, @hash, @exifCamera, @exifLens, @exifDate, @width, @height, @fps, @bitrate, @videoThumbnailTime, @indexedAt)
   `);
   const result = stmt.run({
     path: data.path, name: data.name,
@@ -115,6 +99,7 @@ export function insertImage(data: {
     duration: data.duration ?? null,
     hash: data.hash ?? null, exifCamera: data.exifCamera ?? null, exifLens: data.exifLens ?? null,
     exifDate: data.exifDate ?? null, width: data.width ?? null, height: data.height ?? null,
+    fps: data.fps ?? null, bitrate: data.bitrate ?? null, videoThumbnailTime: data.videoThumbnailTime ?? null,
     indexedAt: Date.now()
   });
   if (result.lastInsertRowid && Number(result.lastInsertRowid) > 0) {
@@ -124,7 +109,7 @@ export function insertImage(data: {
   return row?.id ?? 0;
 }
 
-const IMAGE_COLS = `id, path, name, type, created_at as createdAt, exif_camera as exifCamera, exif_lens as exifLens, exif_date as exifDate, width, height, size, duration`;
+const IMAGE_COLS = `id, path, name, type, created_at as createdAt, exif_camera as exifCamera, exif_lens as exifLens, exif_date as exifDate, width, height, size, duration, fps, bitrate, video_thumbnail_time as videoThumbnailTime`;
 
 export function getImageById(id: number): ImageRecord | null {
   const d = requireDb();
@@ -162,11 +147,6 @@ export function listImagesByDir(dirPath: string, page: number, pageSize: number)
   return { items, total, page, pageSize, hasMore: offset + pageSize < total };
 }
 
-export function listAllImages(): ImageRecord[] {
-  const d = requireDb();
-  return d.prepare(`SELECT ${IMAGE_COLS} FROM images ORDER BY created_at DESC`).all() as ImageRecord[];
-}
-
 export function deleteImage(id: number): void {
   const d = requireDb();
   d.prepare('DELETE FROM images WHERE id = ?').run(id);
@@ -188,71 +168,34 @@ export function updateImageMeta(id: number, createdAt: number, size: number): vo
   d.prepare('UPDATE images SET createdAt = ?, size = ? WHERE id = ?').run(createdAt, size, id);
 }
 
-// ============ 标签 ============
-export function listTags(): Tag[] {
+// 更新视频元数据(分辨率/时长/帧率/码率/封面时间戳)
+export function updateVideoMeta(id: number, data: {
+  width?: number; height?: number; duration?: number; fps?: number; bitrate?: number; videoThumbnailTime?: number;
+}): void {
   const d = requireDb();
-  return d.prepare(`
-    SELECT t.id, t.name, COUNT(it.image_id) as count
-    FROM tags t LEFT JOIN image_tags it ON t.id = it.tag_id
-    GROUP BY t.id ORDER BY t.name
-  `).all() as Tag[];
+  d.prepare(`
+    UPDATE images SET
+      width = COALESCE(@width, width),
+      height = COALESCE(@height, height),
+      duration = COALESCE(@duration, duration),
+      fps = COALESCE(@fps, fps),
+      bitrate = COALESCE(@bitrate, bitrate),
+      video_thumbnail_time = COALESCE(@videoThumbnailTime, video_thumbnail_time)
+    WHERE id = @id
+  `).run({
+    id,
+    width: data.width ?? null,
+    height: data.height ?? null,
+    duration: data.duration ?? null,
+    fps: data.fps ?? null,
+    bitrate: data.bitrate ?? null,
+    videoThumbnailTime: data.videoThumbnailTime ?? null
+  });
 }
 
-export function createTag(name: string): Tag {
-  const d = requireDb();
-  const result = d.prepare('INSERT INTO tags (name) VALUES (?)').run(name);
-  return { id: Number(result.lastInsertRowid), name };
-}
-
-export function attachTag(imageId: number, tagId: number): void {
-  const d = requireDb();
-  d.prepare('INSERT OR IGNORE INTO image_tags (image_id, tag_id) VALUES (?, ?)').run(imageId, tagId);
-}
-
-export function detachTag(imageId: number, tagId: number): void {
-  const d = requireDb();
-  d.prepare('DELETE FROM image_tags WHERE image_id = ? AND tag_id = ?').run(imageId, tagId);
-}
-
-export function listTagsByImage(imageId: number): Tag[] {
-  const d = requireDb();
-  return d.prepare(`
-    SELECT t.id, t.name FROM tags t
-    JOIN image_tags it ON t.id = it.tag_id
-    WHERE it.image_id = ? ORDER BY t.name
-  `).all(imageId) as Tag[];
-}
-
-// ============ 虚拟相册 ============
-export function listVirtualAlbums(): VirtualAlbum[] {
-  const d = requireDb();
-  return d.prepare(`
-    SELECT a.id, a.name, COUNT(ai.image_id) as imageCount
-    FROM albums_virtual a LEFT JOIN album_images ai ON a.id = ai.album_id
-    GROUP BY a.id ORDER BY a.name
-  `).all() as VirtualAlbum[];
-}
-
-export function createVirtualAlbum(name: string): VirtualAlbum {
-  const d = requireDb();
-  const result = d.prepare('INSERT INTO albums_virtual (name) VALUES (?)').run(name);
-  return { id: Number(result.lastInsertRowid), name, imageCount: 0 };
-}
-
-export function addImageToVirtualAlbum(albumId: number, imageId: number): void {
-  const d = requireDb();
-  d.prepare('INSERT OR IGNORE INTO album_images (album_id, image_id) VALUES (?, ?)').run(albumId, imageId);
-}
-
-export function removeImageFromVirtualAlbum(albumId: number, imageId: number): void {
-  const d = requireDb();
-  d.prepare('DELETE FROM album_images WHERE album_id = ? AND image_id = ?').run(albumId, imageId);
-}
-
-export function deleteVirtualAlbum(id: number): void {
-  const d = requireDb();
-  d.prepare('DELETE FROM albums_virtual WHERE id = ?').run(id);
-}
+// ============ 虚拟相册(已废弃,改用基于文件夹的相册,见 fs-ops.ts) ============
+// 历史函数 listVirtualAlbums/createVirtualAlbum/addImageToVirtualAlbum/removeImageFromVirtualAlbum/deleteVirtualAlbum
+// 已随 albums_virtual/album_images 表一并移除
 
 // ============ 回收站 ============
 export function insertTrash(data: {
@@ -303,6 +246,28 @@ export function deleteAllTrashRecords(): void {
   d.prepare('DELETE FROM trash WHERE restored = 0').run();
 }
 
+/**
+ * 清理过期回收站记录
+ * - 删除 trashed_at 早于 beforeTs 的未恢复记录
+ * - 返回被删除记录的 id 与 trashName(用于同步删除磁盘文件)
+ */
+export function purgeExpiredTrash(beforeTs: number): { id: number; trashName: string }[] {
+  const d = requireDb();
+  // 先查出待清理项的 id + trashName(便于调用方删除磁盘文件)
+  const expired = d.prepare(`
+    SELECT id, trash_name as trashName FROM trash
+    WHERE restored = 0 AND trashed_at < ?
+  `).all(beforeTs) as { id: number; trashName: string }[];
+  if (expired.length === 0) return [];
+  // 批量删除记录
+  const stmt = d.prepare('DELETE FROM trash WHERE id = ?');
+  const tx = d.transaction((rows: { id: number }[]) => {
+    for (const row of rows) stmt.run(row.id);
+  });
+  tx(expired);
+  return expired;
+}
+
 // ============ 搜索 ============
 export function searchByName(query: string): ImageRecord[] {
   const d = requireDb();
@@ -316,20 +281,6 @@ export function searchByDateRange(from: number, to: number): ImageRecord[] {
   return d.prepare(`
     SELECT ${IMAGE_COLS} FROM images WHERE created_at BETWEEN ? AND ? ORDER BY created_at DESC
   `).all(from, to) as ImageRecord[];
-}
-
-export function searchByTags(tagIds: number[]): ImageRecord[] {
-  const d = requireDb();
-  if (tagIds.length === 0) return [];
-  const placeholders = tagIds.map(() => '?').join(',');
-  return d.prepare(`
-    SELECT DISTINCT ${IMAGE_COLS.replace('id, ', 'i.id, ')} FROM images i
-    JOIN image_tags it ON i.id = it.image_id
-    WHERE it.tag_id IN (${placeholders})
-    GROUP BY i.id
-    HAVING COUNT(DISTINCT it.tag_id) = ?
-    ORDER BY i.created_at DESC
-  `).all(...tagIds, tagIds.length) as ImageRecord[];
 }
 
 export function searchByExif(camera?: string, lens?: string): ImageRecord[] {

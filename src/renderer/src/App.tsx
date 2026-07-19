@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from './store';
 import { setInitialized } from './store/librarySlice';
 import { setScanProgress } from './store/uiSlice';
+import { useTheme } from './hooks/useTheme';
 import AppShell from './components/layout/AppShell';
 import LibraryPicker from './components/library/LibraryPicker';
 
@@ -11,6 +12,8 @@ export default function App() {
   const initialized = useSelector((s: RootState) => s.library.initialized);
   const [checking, setChecking] = useState(true);
   const dispatch = useDispatch();
+  // 初始化主题监听(明暗模式)
+  useTheme();
 
   useEffect(() => {
     (async () => {

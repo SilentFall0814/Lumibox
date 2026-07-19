@@ -1,12 +1,11 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { Album, VirtualAlbum } from '../../../shared/types';
+import type { Album } from '../../../shared/types';
 
 interface AlbumsState {
   folders: Album[];
-  virtualAlbums: VirtualAlbum[];
 }
 
-const initialState: AlbumsState = { folders: [], virtualAlbums: [] };
+const initialState: AlbumsState = { folders: [] };
 
 const albumsSlice = createSlice({
   name: 'albums',
@@ -14,12 +13,9 @@ const albumsSlice = createSlice({
   reducers: {
     setFolders(state, action: PayloadAction<Album[]>) {
       state.folders = action.payload;
-    },
-    setVirtualAlbums(state, action: PayloadAction<VirtualAlbum[]>) {
-      state.virtualAlbums = action.payload;
     }
   }
 });
 
-export const { setFolders, setVirtualAlbums } = albumsSlice.actions;
+export const { setFolders } = albumsSlice.actions;
 export default albumsSlice.reducer;

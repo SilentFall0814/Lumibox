@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
-import { openDatabase, closeDatabase, initSchema, insertImage, listImagesByDir, createTag, attachTag, listTagsByImage, createVirtualAlbum, addImageToVirtualAlbum, listVirtualAlbums } from '../../src/main/services/database';
+import { openDatabase, closeDatabase, initSchema, insertImage, listImagesByDir } from '../../src/main/services/database';
 
 describe('database', () => {
   let tmpRoot: string;
@@ -32,22 +32,5 @@ describe('database', () => {
     const page = listImagesByDir('相册A', 1, 100);
     expect(page.items.length).toBe(2);
     expect(page.total).toBe(2);
-  });
-
-  it('标签 CRUD + 图片-标签关联', () => {
-    const imgId = insertImage({ path: 'x.jpg', name: 'x.jpg', createdAt: 0, size: 0 });
-    const tag = createTag('旅行');
-    attachTag(imgId, tag.id);
-    const tags = listTagsByImage(imgId);
-    expect(tags.length).toBe(1);
-    expect(tags[0].name).toBe('旅行');
-  });
-
-  it('虚拟相册:添加图片不复制文件', () => {
-    const imgId = insertImage({ path: 'a.jpg', name: 'a.jpg', createdAt: 0, size: 0 });
-    const album = createVirtualAlbum('精选');
-    addImageToVirtualAlbum(album.id, imgId);
-    const list = listVirtualAlbums();
-    expect(list[0].imageCount).toBe(1);
   });
 });

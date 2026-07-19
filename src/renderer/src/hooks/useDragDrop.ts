@@ -55,16 +55,6 @@ export function useDragDrop(onDrop: (paths: string[], mode: 'move' | 'copy') => 
   return { state, handlers: { onDragOver, onDragLeave, onDrop: onDropHandler } };
 }
 
-/** 处理图片卡片拖拽到相册:始终移动 */
-export function useCardDrag(imageIds: number[]) {
-  const onDragStart = useCallback((e: React.DragEvent) => {
-    e.dataTransfer.setData('application/x-lumibox-images', JSON.stringify(imageIds));
-    e.dataTransfer.effectAllowed = 'move';
-  }, [imageIds]);
-
-  return { onDragStart };
-}
-
 /** 相册作为 drop 目标 */
 export function useAlbumDrop(onDropImages: (imageIds: number[]) => void) {
   const [isOver, setIsOver] = useState(false);

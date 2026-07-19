@@ -94,22 +94,26 @@ export default function AlbumList() {
   };
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-0.5">
+      {/* 分组标题 + 新建按钮 */}
       <div className="flex items-center justify-between px-3 py-1.5">
-        <span className="text-xs font-medium uppercase tracking-wider text-muted-fg">相册</span>
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-fg">
+          相册
+        </span>
         <button
           onClick={() => setShowCreate(true)}
-          className="rounded p-1 text-muted-fg hover:bg-muted hover:text-foreground"
+          className="flex h-5 w-5 items-center justify-center rounded-full text-muted-fg transition-all duration-200 ease-spring hover:bg-black/[0.05] hover:text-foreground dark:hover:bg-white/[0.08]"
           title="新建相册"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
             <path d="M12 5v14M5 12h14" />
           </svg>
         </button>
       </div>
 
+      {/* 新建相册输入框 */}
       {showCreate && (
-        <div className="px-3 pb-2">
+        <div className="px-2 pb-1.5 animate-scale-in">
           <input
             autoFocus
             value={newName}
@@ -119,24 +123,31 @@ export default function AlbumList() {
               if (e.key === 'Escape') { setShowCreate(false); setNewName(''); }
             }}
             placeholder="相册名称"
-            className="w-full rounded border border-border bg-background px-2 py-1 text-sm outline-none focus:border-primary"
+            className="w-full rounded-lg border border-border/60 bg-background/60 px-2.5 py-1.5 text-[13px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 backdrop-blur-md"
           />
         </div>
       )}
 
-      {folders.map((album) => (
-        <AlbumItem
+      {/* 相册列表 */}
+      {folders.map((album, idx) => (
+        <div
           key={album.path}
-          album={album}
-          selected={selectedAlbum === album.path}
-          onSelect={() => handleSelectAlbum(album)}
-          onDelete={() => setConfirmDelete(album.path)}
-          onDropImages={(ids) => handleDropImages(ids, album.path)}
-        />
+          className="stagger-item"
+          style={{ animationDelay: `${Math.min(idx, 12) * 40}ms` }}
+        >
+          <AlbumItem
+            album={album}
+            selected={selectedAlbum === album.path}
+            onSelect={() => handleSelectAlbum(album)}
+            onDelete={() => setConfirmDelete(album.path)}
+            onDropImages={(ids) => handleDropImages(ids, album.path)}
+          />
+        </div>
       ))}
 
+      {/* 空状态 */}
       {folders.length === 0 && !showCreate && (
-        <p className="px-3 py-2 text-xs text-muted-fg">暂无相册,点击 + 创建</p>
+        <p className="px-3 py-2 text-[11px] text-muted-fg">暂无相册,点击 + 创建</p>
       )}
 
       <ConfirmDialog

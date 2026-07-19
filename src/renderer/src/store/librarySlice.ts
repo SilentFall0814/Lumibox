@@ -19,9 +19,6 @@ const librarySlice = createSlice({
   name: 'library',
   initialState,
   reducers: {
-    setLibraries(state, action: PayloadAction<Library[]>) {
-      state.libraries = action.payload;
-    },
     setCurrentLibrary(state, action: PayloadAction<number | null>) {
       state.currentLibraryId = action.payload;
       state.initialized = action.payload !== null;
@@ -35,5 +32,5 @@ const librarySlice = createSlice({
   }
 });
 
-export const { setLibraries, setCurrentLibrary, setInitialized, setLoading } = librarySlice.actions;
+export const { setCurrentLibrary, setInitialized, setLoading } = librarySlice.actions;
 export default librarySlice.reducer;

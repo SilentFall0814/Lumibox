@@ -5,6 +5,7 @@ import { getOrCreateThumbnail } from '../services/thumbnail';
 import { getLibraryRoot, resolveLibraryPath } from '../services/path-guard';
 import { listImagesByDir, getImageById, deleteImage, insertTrash, updateImagePath } from '../services/database';
 import { readExif } from '../services/exif';
+import { probeVideoMetadata, pickRandomTimestamp } from '../services/video-probe';
 
 export function registerImageHandlers(): void {
   ipcMain.handle('image:listByDir', (_evt, dirPath: string, page: number) => {
@@ -50,14 +51,64 @@ export function registerImageHandlers(): void {
     const img = getImageById(imageId);
     if (!img) throw new Error('图片不存在');
     const root = getLibraryRoot();
-    return getOrCreateThumbnail(path.join(root, img.path));
+    const abs = path.join(root, img.path);
+    // 传递 imageId,让视频走 lumibox://vframe/<imageId> 协议(内存缓存)
+    return getOrCreateThumbnail(abs, {
+      videoThumbnailTime: img.videoThumbnailTime ?? 1,
+      videoDuration: img.duration,
+      imageId
+    });
   });
 
-  ipcMain.handle('image:getExif', (_evt, imageId: number) => {
+  ipcMain.handle('image:getExif', async (_evt, imageId: number) => {
     const img = getImageById(imageId);
     if (!img) throw new Error('图片不存在');
     const root = getLibraryRoot();
-    return readExif(path.join(root, img.path));
+    const abs = path.join(root, img.path);
+    const exif = readExif(abs);
+    // 视频补充元数据到 exif 返回值
+    if (img.type === 'video') {
+      // 若数据库已含完整元数据(4 项全有),优先用数据库值
+      const hasAllMeta = img.width && img.height && img.duration != null && img.fps != null && img.bitrate != null;
+      if (hasAllMeta) {
+        return {
+          ...exif,
+          duration: img.duration,
+          fps: img.fps,
+          bitrate: img.bitrate,
+          width: img.width,
+          height: img.height
+        };
+      }
+      // 否则现取一次,并将结果合并写入数据库,避免每次都重新探查
+      const probe = await probeVideoMetadata(abs);
+      const merged = {
+        ...exif,
+        width: img.width ?? probe.width,
+        height: img.height ?? probe.height,
+        duration: img.duration ?? probe.duration,
+        fps: img.fps ?? probe.fps,
+        bitrate: img.bitrate ?? probe.bitrate
+      };
+      // 异步更新数据库,不阻塞返回
+      try {
+        const { updateVideoMeta } = require('../services/database');
+        // 若 videoThumbnailTime 缺失,根据 probe 时长计算一个稳定的随机时间戳
+        const thumbnailTime = img.videoThumbnailTime != null
+          ? img.videoThumbnailTime
+          : pickRandomTimestamp(abs, probe.duration);
+        updateVideoMeta(imageId, {
+          width: probe.width,
+          height: probe.height,
+          duration: probe.duration,
+          fps: probe.fps,
+          bitrate: probe.bitrate,
+          videoThumbnailTime: thumbnailTime
+        });
+      } catch { /* 忽略更新失败 */ }
+      return merged;
+    }
+    return exif;
   });
 
   // destDir 为相对库根的目标目录(当前相册路径),空串表示导入到库根

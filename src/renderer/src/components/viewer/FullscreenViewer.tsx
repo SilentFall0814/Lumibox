@@ -3,81 +3,22 @@ import { useDispatch, useSelector } from 'react-redux';
 import type { RootState, AppDispatch } from '../../store';
 import { setFullscreenImage } from '../../store/uiSlice';
 import { useKeyboard } from '../../hooks/useKeyboard';
-import { formatDuration } from '../../lib/utils';
+import { formatBytes, formatDuration } from '../../lib/utils';
+import type { ImageRecord } from '../../../../shared/types';
 
 // 用自定义 lumibox:// 协议加载库内原图
-// 格式: lumibox://img/<url-encoded-relative-path>
 function buildImageUrl(relPath: string): string {
   return `lumibox://img/${encodeURIComponent(relPath)}`;
 }
 
-// ============ 图标组件 ============
-const IconChevronLeft = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m15 18-6-6 6-6" />
-  </svg>
-);
-
-const IconChevronRight = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m9 18 6-6-6-6" />
-  </svg>
-);
-
-const IconClose = ({ size = 20 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M18 6 6 18M6 6l12 12" />
-  </svg>
-);
-
-const IconPlay = ({ size = 20 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M8 5.14v14l11-7-11-7z" />
-  </svg>
-);
-
-const IconPause = ({ size = 20 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M6 4h4v16H6zM14 4h4v16h-4z" />
-  </svg>
-);
-
-const IconVolume = ({ size = 18 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M11 5 6 9H2v6h4l5 4V5z" />
-    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-  </svg>
-);
-
-const IconVolumeMute = ({ size = 18 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M11 5 6 9H2v6h4l5 4V5z" />
-    <path d="m23 9-6 6M17 9l6 6" />
-  </svg>
-);
-
-const IconZoomIn = ({ size = 18 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8" />
-    <path d="m21 21-4.35-4.35M11 8v6M8 11h6" />
-  </svg>
-);
-
-const IconZoomOut = ({ size = 18 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8" />
-    <path d="m21 21-4.35-4.35M8 11h6" />
-  </svg>
-);
-
-const IconExpand = ({ size = 18 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
-  </svg>
-);
-
 // ============ 自定义视频播放器 ============
-function VideoPlayer({ src, onNext, onPrev }: { src: string; onNext: () => void; onPrev: () => void }) {
+function VideoPlayer({ src, onNext, onPrev, fileName, meta }: {
+  src: string;
+  onNext: () => void;
+  onPrev: () => void;
+  fileName: string;
+  meta: string;
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
@@ -97,7 +38,6 @@ function VideoPlayer({ src, onNext, onPrev }: { src: string; onNext: () => void;
     v.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
   }, [src]);
 
-  // 更新进度
   const handleTimeUpdate = () => {
     const v = videoRef.current;
     if (!v) return;
@@ -117,7 +57,6 @@ function VideoPlayer({ src, onNext, onPrev }: { src: string; onNext: () => void;
     else { v.pause(); setPlaying(false); }
   }, []);
 
-  // 点击进度条跳转
   const handleProgressClick = useCallback((e: React.MouseEvent) => {
     const bar = progressBarRef.current;
     const v = videoRef.current;
@@ -127,7 +66,6 @@ function VideoPlayer({ src, onNext, onPrev }: { src: string; onNext: () => void;
     v.currentTime = Math.max(0, Math.min(1, ratio)) * duration;
   }, [duration]);
 
-  // 拖动进度条
   const handleProgressDrag = useCallback((e: React.MouseEvent) => {
     const bar = progressBarRef.current;
     const v = videoRef.current;
@@ -176,7 +114,7 @@ function VideoPlayer({ src, onNext, onPrev }: { src: string; onNext: () => void;
     }
   }, []);
 
-  // 自动隐藏控制条
+  // 自动隐藏控制条(3s 鼠标静止)
   const showControlsTemporarily = useCallback(() => {
     setShowControls(true);
     if (hideTimer.current) clearTimeout(hideTimer.current);
@@ -208,9 +146,10 @@ function VideoPlayer({ src, onNext, onPrev }: { src: string; onNext: () => void;
   return (
     <div
       ref={containerRef}
-      className="relative flex max-h-full max-w-full items-center justify-center"
+      className="relative flex h-full w-full items-center justify-center"
       onMouseMove={showControlsTemporarily}
       onClick={(e) => e.stopPropagation()}
+      style={{ background: '#000000' }}
     >
       <video
         ref={videoRef}
@@ -223,99 +162,101 @@ function VideoPlayer({ src, onNext, onPrev }: { src: string; onNext: () => void;
         draggable={false}
       />
 
-      {/* 自定义控制条 - 白色极简风格 */}
+      {/* ===== 顶部工具栏(52px 毛玻璃) ===== */}
       <div
-        className={`absolute bottom-0 left-0 right-0 transition-opacity duration-200 ${
+        className={`absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-4 transition-opacity duration-200 ${
           showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
+        style={{
+          height: '52px',
+          background: 'rgba(28, 28, 30, 0.6)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 进度条 */}
-        <div className="px-4 pb-1">
-          <div className="flex items-center gap-2 text-xs text-white/90 mb-1">
-            <span className="tabular-nums">{formatDuration(current)}</span>
-            <div
-              ref={progressBarRef}
-              onClick={handleProgressClick}
-              onMouseDown={handleProgressDrag}
-              className="group relative h-1 flex-1 cursor-pointer rounded-full bg-white/20"
-            >
-              {/* 已播放部分 */}
-              <div
-                className="absolute left-0 top-0 h-full rounded-full bg-blue-500"
-                style={{ width: `${progressPercent}%` }}
-              />
-              {/* 拖动手柄 */}
-              <div
-                className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-0 shadow-md transition-opacity group-hover:opacity-100"
-                style={{ left: `${progressPercent}%` }}
-              />
-            </div>
-            <span className="tabular-nums">{formatDuration(duration)}</span>
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <span className="truncate text-[14px] font-medium" style={{ color: '#f5f5f7' }}>{fileName}</span>
+          <span className="truncate text-[12px]" style={{ color: '#86868b' }}>{meta}</span>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <button onClick={toggleMute} className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/10" title={muted ? '取消静音' : '静音'}>
+            {muted || volume === 0 ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 5 6 9H2v6h4l5 4V5z" />
+                <path d="m23 9-6 6M17 9l6 6" />
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 5 6 9H2v6h4l5 4V5z" />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              </svg>
+            )}
+          </button>
+          <button onClick={toggleFullscreen} className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/10" title={isFullscreen ? '退出全屏' : '全屏'}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* ===== 底部播放控制条(72px 毛玻璃) ===== */}
+      <div
+        className={`absolute bottom-0 left-0 right-0 z-30 flex items-center gap-6 px-6 transition-opacity duration-200 ${
+          showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+        style={{
+          height: '72px',
+          background: 'rgba(28, 28, 30, 0.6)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          borderTop: '1px solid rgba(255, 255, 255, 0.08)'
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* 进度条区 */}
+        <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[12px] tabular-nums leading-none" style={{ color: '#f5f5f7' }}>{formatDuration(current)}</span>
+            <span className="text-[12px] tabular-nums leading-none" style={{ color: '#86868b' }}>-{formatDuration(Math.max(0, duration - current))}</span>
+          </div>
+          <div ref={progressBarRef} className="group relative h-1 cursor-pointer rounded-full" style={{ background: 'rgba(255,255,255,0.18)', transition: 'height 0.2s' }} onClick={handleProgressClick} onMouseDown={handleProgressDrag}>
+            <div className="absolute left-0 top-0 h-full rounded-full" style={{ width: `${progressPercent}%`, background: '#ffffff' }} />
+            <div className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-0 shadow-md transition-opacity group-hover:opacity-100" style={{ left: `${progressPercent}%` }} />
           </div>
         </div>
-
-        {/* 底部控制栏 */}
-        <div className="flex items-center gap-3 bg-gradient-to-t from-black/80 to-transparent px-4 pb-3 pt-1">
-          {/* 上一张 */}
-          <button
-            onClick={onPrev}
-            className="rounded p-1.5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-            title="上一个"
-          >
-            <IconChevronLeft size={20} />
+        <div className="flex items-center gap-4 shrink-0">
+          <button onClick={onPrev} className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/10" title="上一段">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="19 20 9 12 19 4 19 20" /><line x1="5" y1="19" x2="5" y2="5" /></svg>
           </button>
-
-          {/* 播放/暂停 */}
-          <button
-            onClick={togglePlay}
-            className="rounded p-2 text-white transition-colors hover:bg-white/10"
-            title={playing ? '暂停' : '播放'}
-          >
-            {playing ? <IconPause size={22} /> : <IconPlay size={22} />}
+          <button onClick={togglePlay} className="flex h-10 w-10 items-center justify-center rounded-full transition-transform active:scale-95" style={{ background: '#ffffff' }} title={playing ? '暂停' : '播放'}>
+            {playing ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#000000"><path d="M6 4h4v16H6zM14 4h4v16h-4z" /></svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#000000"><path d="M8 5.14v14l11-7-11-7z" /></svg>
+            )}
           </button>
-
-          {/* 下一张 */}
-          <button
-            onClick={onNext}
-            className="rounded p-1.5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-            title="下一个"
-          >
-            <IconChevronRight size={20} />
+          <button onClick={onNext} className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/10" title="下一段">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 4 15 12 5 20 5 4" /><line x1="19" y1="5" x2="19" y2="19" /></svg>
           </button>
-
-          {/* 音量 */}
-          <div className="flex items-center gap-1.5 ml-2">
-            <button
-              onClick={toggleMute}
-              className="rounded p-1 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-              title={muted ? '取消静音' : '静音'}
-            >
-              {muted || volume === 0 ? <IconVolumeMute size={18} /> : <IconVolume size={18} />}
+          <div className="flex items-center gap-2 ml-2">
+            <button onClick={toggleMute} className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/10" title={muted ? '取消静音' : '静音'}>
+              {muted || volume === 0 ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z" /><path d="m23 9-6 6M17 9l6 6" /></svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /></svg>
+              )}
             </button>
             <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={muted ? 0 : volume}
-              onChange={handleVolumeChange}
-              className="h-1 w-20 cursor-pointer appearance-none rounded-full bg-white/20 accent-blue-500"
-              style={{
-                background: `linear-gradient(to right, #3b82f6 ${(muted ? 0 : volume) * 100}%, rgba(255,255,255,0.2) ${(muted ? 0 : volume) * 100}%)`
-              }}
+              type="range" min="0" max="1" step="0.05" value={muted ? 0 : volume} onChange={handleVolumeChange}
+              className="h-1 w-20 cursor-pointer appearance-none rounded-full"
+              style={{ background: `linear-gradient(to right, #ffffff ${(muted ? 0 : volume) * 100}%, rgba(255,255,255,0.18) ${(muted ? 0 : volume) * 100}%)` }}
             />
           </div>
-
-          <div className="flex-1" />
-
-          {/* 全屏 */}
-          <button
-            onClick={toggleFullscreen}
-            className="rounded p-1.5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-            title={isFullscreen ? '退出全屏' : '全屏'}
-          >
-            <IconExpand size={18} />
+          <button onClick={toggleFullscreen} className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/10" title={isFullscreen ? '退出全屏' : '全屏'}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" /></svg>
           </button>
         </div>
       </div>
@@ -329,12 +270,10 @@ function ImageViewer({ src, scale, onScaleChange }: { src: string; scale: number
   const [dragging, setDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
 
-  // 切换图片时重置位置
   useEffect(() => {
     setPos({ x: 0, y: 0 });
   }, [src]);
 
-  // 双击切换缩放
   const handleDoubleClick = useCallback(() => {
     if (scale === 1) {
       onScaleChange(2);
@@ -344,7 +283,6 @@ function ImageViewer({ src, scale, onScaleChange }: { src: string; scale: number
     }
   }, [scale, onScaleChange]);
 
-  // 拖拽平移(仅放大时)
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (scale <= 1) return;
     setDragging(true);
@@ -371,10 +309,16 @@ function ImageViewer({ src, scale, onScaleChange }: { src: string; scale: number
     <img
       src={src}
       alt=""
-      className="max-h-full max-w-full object-contain transition-transform duration-100"
+      className="viewer-image select-none"
       style={{
+        maxWidth: '80%',
+        maxHeight: '72%',
+        objectFit: 'contain',
         transform: `translate(${pos.x}px, ${pos.y}px) scale(${scale})`,
-        cursor: scale > 1 ? (dragging ? 'grabbing' : 'grab') : 'default'
+        cursor: scale > 1 ? (dragging ? 'grabbing' : 'grab') : 'default',
+        boxShadow: '0 24px 80px rgba(0, 0, 0, 0.6)',
+        borderRadius: '0.25rem',
+        transition: 'transform 0.1s'
       }}
       onClick={(e) => e.stopPropagation()}
       onDoubleClick={handleDoubleClick}
@@ -391,6 +335,8 @@ export default function FullscreenViewer() {
   const items = useSelector((s: RootState) => s.images.items);
   const searchResults = useSelector((s: RootState) => s.images.searchResults);
   const [scale, setScale] = useState(1);
+  const [showControls, setShowControls] = useState(true);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const allItems = searchResults ?? items;
   const currentIndex = imageId ? allItems.findIndex((i) => i.id === imageId) : -1;
@@ -422,6 +368,33 @@ export default function FullscreenViewer() {
     setScale(1);
   }, [imageId]);
 
+  // 3s 鼠标静止自动隐藏控件
+  const showControlsTemporarily = useCallback(() => {
+    setShowControls(true);
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setShowControls(false), 3000);
+  }, []);
+
+  useEffect(() => {
+    showControlsTemporarily();
+    return () => { if (hideTimer.current) clearTimeout(hideTimer.current); };
+  }, [showControlsTemporarily, imageId]);
+
+  // 预加载相邻图片原图
+  useEffect(() => {
+    if (currentIndex < 0) return;
+    const preloadIndices = [currentIndex + 1, currentIndex - 1];
+    preloadIndices.forEach((idx) => {
+      if (idx >= 0 && idx < allItems.length) {
+        const item = allItems[idx];
+        if (item.type === 'image') {
+          const img = new Image();
+          img.src = buildImageUrl(item.path);
+        }
+      }
+    });
+  }, [currentIndex, allItems]);
+
   const handleWheel = useCallback((e: React.WheelEvent) => {
     const delta = e.deltaY > 0 ? -0.15 : 0.15;
     setScale((s) => Math.max(1, Math.min(5, s + delta)));
@@ -432,16 +405,25 @@ export default function FullscreenViewer() {
   const fullSrc = buildImageUrl(currentImg.path);
   const isVideo = currentImg.type === 'video';
 
+  // 元信息:文件大小 + 分辨率(或视频规格)
+  const metaInfo = isVideo
+    ? `${currentImg.width ?? '?'}×${currentImg.height ?? '?'} · ${currentImg.fps ?? '?'}fps · ${formatBytes(currentImg.size)}`
+    : `${currentImg.width ?? '?'}×${currentImg.height ?? '?'} · ${formatBytes(currentImg.size)}`;
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: '#000000' }}
       onClick={close}
+      onMouseMove={showControlsTemporarily}
       onWheel={isVideo ? undefined : handleWheel}
     >
       {/* 媒体内容 */}
       {isVideo ? (
         <VideoPlayer
           src={fullSrc}
+          fileName={currentImg.name}
+          meta={metaInfo}
           onNext={() => navigate('next')}
           onPrev={() => navigate('prev')}
         />
@@ -449,75 +431,202 @@ export default function FullscreenViewer() {
         <ImageViewer src={fullSrc} scale={scale} onScaleChange={setScale} />
       )}
 
-      {/* 顶部栏:关闭按钮 + 文件名 */}
-      <div
-        className="absolute top-0 left-0 right-0 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent px-4 py-3"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center gap-2 text-sm text-white/80">
-          <span className="truncate max-w-md">{currentImg.name}</span>
-          <span className="text-white/40">·</span>
-          <span className="text-white/60">{currentIndex + 1} / {allItems.length}</span>
-        </div>
-        <button
-          onClick={close}
-          className="rounded-lg p-2 text-white/80 transition-all hover:bg-white/15 hover:text-white"
-          title="关闭 (Esc)"
-        >
-          <IconClose size={22} />
-        </button>
-      </div>
-
-      {/* 左右导航 */}
-      <button
-        onClick={(e) => { e.stopPropagation(); navigate('prev'); }}
-        className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white backdrop-blur-sm transition-all hover:bg-white/20 hover:scale-105 disabled:opacity-30 disabled:hover:scale-100"
-        disabled={currentIndex === 0}
-        title="上一个 (←)"
-      >
-        <IconChevronLeft size={26} />
-      </button>
-      <button
-        onClick={(e) => { e.stopPropagation(); navigate('next'); }}
-        className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white backdrop-blur-sm transition-all hover:bg-white/20 hover:scale-105 disabled:opacity-30 disabled:hover:scale-100"
-        disabled={currentIndex === allItems.length - 1}
-        title="下一个 (→)"
-      >
-        <IconChevronRight size={26} />
-      </button>
-
-      {/* 底部工具栏(仅图片) */}
+      {/* ===== 顶部工具栏(52px 毛玻璃) - 仅图片显示 ===== */}
       {!isVideo && (
         <div
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 backdrop-blur-sm"
+          className={`absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-4 transition-opacity duration-200 ${
+            showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+          style={{
+            height: '52px',
+            background: 'rgba(28, 28, 30, 0.6)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+          }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button
-            onClick={() => setScale((s) => Math.max(1, s - 0.25))}
-            className="rounded-full p-2 text-white/80 transition-colors hover:bg-white/15 hover:text-white"
-            title="缩小"
-          >
-            <IconZoomOut size={18} />
-          </button>
-          <span className="min-w-[3rem] text-center text-xs tabular-nums text-white/90">
-            {Math.round(scale * 100)}%
-          </span>
+          {/* 左侧:返回按钮 + 文件名 + 元信息 */}
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={close}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-white/10"
+              aria-label="返回图库"
+              title="关闭 (Esc)"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <div className="flex items-baseline gap-2 min-w-0">
+              <span className="truncate text-[14px] font-medium" style={{ color: '#f5f5f7' }}>{currentImg.name}</span>
+              <span className="hidden whitespace-nowrap truncate text-[12px] sm:inline" style={{ color: '#86868b' }}>{metaInfo}</span>
+            </div>
+          </div>
+          {/* 右侧:操作按钮组(36px 圆形) */}
+          <div className="flex items-center gap-1 shrink-0">
+            <button className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/10" aria-label="收藏" title="收藏">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>
+            </button>
+            <button className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/10" aria-label="分享" title="分享">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98" /></svg>
+            </button>
+            <button className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/10" aria-label="删除" title="删除">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+            </button>
+            <button className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/10" aria-label="更多" title="更多">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== 右侧垂直缩放控制(毛玻璃胶囊) - 仅图片显示 ===== */}
+      {!isVideo && (
+        <aside
+          className={`absolute right-6 top-1/2 z-40 flex flex-col items-center gap-1 rounded-full p-2 transition-opacity duration-200 ${
+            showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+          style={{
+            transform: 'translateY(-50%)',
+            background: 'rgba(28, 28, 30, 0.6)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* 放大 */}
           <button
             onClick={() => setScale((s) => Math.min(5, s + 0.25))}
-            className="rounded-full p-2 text-white/80 transition-colors hover:bg-white/15 hover:text-white"
-            title="放大"
+            className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/10"
+            aria-label="放大" title="放大"
           >
-            <IconZoomIn size={18} />
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
           </button>
+          {/* 缩放百分比 */}
+          <span className="whitespace-nowrap py-1 text-center text-[12px] tabular-nums" style={{ color: '#f5f5f7' }}>
+            {Math.round(scale * 100)}%
+          </span>
+          {/* 缩小 */}
+          <button
+            onClick={() => setScale((s) => Math.max(1, s - 0.25))}
+            className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/10"
+            aria-label="缩小" title="缩小"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /></svg>
+          </button>
+          {/* 分隔线 */}
+          <div className="my-1" style={{ width: '24px', height: '1px', background: 'rgba(255, 255, 255, 0.12)' }} />
+          {/* 适应窗口 */}
           <button
             onClick={() => { setScale(1); }}
-            className="ml-1 rounded-full px-3 py-1 text-xs text-white/80 transition-colors hover:bg-white/15 hover:text-white"
-            title="重置 (双击图片也可切换)"
+            className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/10"
+            aria-label="适应窗口" title="重置 (双击图片也可切换)"
           >
-            重置
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" /></svg>
           </button>
-        </div>
+        </aside>
+      )}
+
+      {/* ===== 底部缩略图条(88px 毛玻璃) - 仅图片显示 ===== */}
+      {!isVideo && (
+        <footer
+          className={`absolute bottom-0 left-0 right-0 z-40 flex items-center justify-center transition-opacity duration-200 ${
+            showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+          style={{
+            height: '88px',
+            background: 'rgba(28, 28, 30, 0.6)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            borderTop: '1px solid rgba(255, 255, 255, 0.08)'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* 计数(缩略图条上方居中) */}
+          <span
+            className="absolute whitespace-nowrap text-[12px] tabular-nums"
+            style={{ top: '-28px', left: '50%', transform: 'translateX(-50%)', color: '#86868b' }}
+          >
+            {currentIndex + 1} / {allItems.length.toLocaleString()}
+          </span>
+
+          <div className="flex items-center gap-3">
+            {/* 上一张箭头 */}
+            <button
+              onClick={(e) => { e.stopPropagation(); navigate('prev'); }}
+              disabled={currentIndex === 0}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none"
+              aria-label="上一张" title="上一张 (←)"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+            </button>
+
+            {/* 缩略图组:显示前后共 5 张 */}
+            <div className="flex items-center gap-3">
+              {getThumbWindow(allItems, currentIndex, 5).map((item) => {
+                const idx = allItems.findIndex((i) => i.id === item.id);
+                const isActive = idx === currentIndex;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={(e) => { e.stopPropagation(); dispatch(setFullscreenImage(item.id)); }}
+                    className="shrink-0 overflow-hidden transition-all duration-300 focus:outline-none"
+                    style={{
+                      width: '64px',
+                      height: '64px',
+                      borderRadius: '0.6rem',
+                      opacity: isActive ? 1 : 0.6,
+                      border: isActive ? '2px solid var(--primary)' : '2px solid transparent',
+                      transform: isActive ? 'translateY(-4px)' : 'translateY(0)',
+                      boxSizing: 'border-box'
+                    }}
+                    aria-label={item.name}
+                    aria-current={isActive ? 'true' : undefined}
+                  >
+                    <ThumbImg item={item} />
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 下一张箭头 */}
+            <button
+              onClick={(e) => { e.stopPropagation(); navigate('next'); }}
+              disabled={currentIndex === allItems.length - 1}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none"
+              aria-label="下一张" title="下一张 (→)"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+            </button>
+          </div>
+        </footer>
       )}
     </div>
   );
+}
+
+// 获取缩略图窗口(以当前为中心,共 N 项)
+function getThumbWindow(items: ImageRecord[], currentIdx: number, count: number): ImageRecord[] {
+  const half = Math.floor(count / 2);
+  const start = Math.max(0, Math.min(items.length - count, currentIdx - half));
+  return items.slice(start, start + count);
+}
+
+// 缩略图图片(懒加载)
+function ThumbImg({ item }: { item: ImageRecord }) {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    window.lumibox.image.getThumbnail(item.id)
+      .then((u) => { if (!cancelled) setUrl(u); })
+      .catch(() => { /* ignore */ });
+    return () => { cancelled = true; };
+  }, [item.id]);
+
+  if (!url) {
+    return <div className="h-full w-full" style={{ background: 'rgba(255,255,255,0.08)' }} />;
+  }
+  return <img src={url} alt={item.name} className="h-full w-full object-cover" draggable={false} />;
 }

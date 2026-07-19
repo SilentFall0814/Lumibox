@@ -16,7 +16,7 @@ desktop.ini
 coverage/
 .nyc_output/
 
-# 根目录冗余大文件(已复制到 assets/ 或 build/ 下,运行时不需要)
-/PingFangSC-Semibold.ttf
+# 根目录冗余大文件(已复制到 src/renderer/src/assets/ 或 build/ 下,运行时不需要)
 /APP_Logo.png
+/PingFangSC-Semibold.ttf
 /build/APP_Logo_rounded.png

@@ -15,6 +15,7 @@ export const mainConfig: Configuration = {
     'chokidar': 'commonjs chokidar',
     'exif-reader': 'commonjs exif-reader',
     'ffmpeg-static': 'commonjs ffmpeg-static',
+    'ffprobe-static': 'commonjs ffprobe-static',
     'fluent-ffmpeg': 'commonjs fluent-ffmpeg'
   }
 };

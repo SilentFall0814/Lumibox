@@ -41,11 +41,3 @@ export function resolveLibraryPath(relativePath: string): string {
   assertWithinLibrary(resolved);
   return resolved;
 }
-
-/** 将绝对路径转为相对库根的路径(正斜杠分隔) */
-export function toRelativePath(absolutePath: string): string {
-  if (!libraryRoot) throw new Error('尚未初始化照片库');
-  const resolved = path.resolve(absolutePath);
-  assertWithinLibrary(resolved);
-  return path.relative(libraryRoot, resolved).replace(/\\/g, '/');
-}

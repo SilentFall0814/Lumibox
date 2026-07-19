@@ -39,6 +39,9 @@ export interface ImageRecord {
   height?: number;
   size: number;
   duration?: number; // 视频时长(秒),仅视频
+  fps?: number; // 视频帧率,仅视频
+  bitrate?: number; // 视频码率(bits/s),仅视频
+  videoThumbnailTime?: number; // 视频封面帧的时间戳(秒),仅视频,用于随机选帧
 }
 
 export interface ImagePage {
@@ -70,24 +73,16 @@ export interface TrashItem {
   restored: number;
 }
 
-export interface Tag {
-  id: number;
-  name: string;
-  count?: number;
-}
-
-export interface VirtualAlbum {
-  id: number;
-  name: string;
-  imageCount: number;
-}
-
 export interface ExifData {
   camera?: string;
   lens?: string;
   date?: number;
   width?: number;
   height?: number;
+  // 视频额外信息
+  duration?: number;
+  fps?: number;
+  bitrate?: number;
 }
 
 export interface UndoEntry {
@@ -141,17 +136,9 @@ export interface LumiboxAPI {
     purge(trashId: number): Promise<void>;
     emptyTrash(): Promise<void>;
   };
-  tag: {
-    listTags(): Promise<Tag[]>;
-    createTag(name: string): Promise<Tag>;
-    attachTag(imageId: number, tagId: number): Promise<void>;
-    detachTag(imageId: number, tagId: number): Promise<void>;
-    listTagsByImage(imageId: number): Promise<Tag[]>;
-  };
   search: {
     byName(query: string): Promise<ImageRecord[]>;
     byDateRange(from: number, to: number): Promise<ImageRecord[]>;
-    byTags(tagIds: number[]): Promise<ImageRecord[]>;
     byExif(camera?: string, lens?: string): Promise<ImageRecord[]>;
   };
   undo: {

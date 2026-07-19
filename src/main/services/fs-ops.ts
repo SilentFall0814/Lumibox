@@ -187,6 +187,20 @@ export function purgeTrash(trashName: string): void {
   if (fs.existsSync(trashPath)) fs.rmSync(trashPath, { recursive: true, force: true });
 }
 
+/** 批量清理回收站磁盘文件(用于自动清理过期项) */
+export function purgeTrashList(trashNames: string[]): void {
+  const root = getLibraryRoot();
+  const trashDir = path.join(root, '.lumibox', 'trash');
+  for (const name of trashNames) {
+    const trashPath = path.join(trashDir, name);
+    try {
+      if (fs.existsSync(trashPath)) fs.rmSync(trashPath, { recursive: true, force: true });
+    } catch (err) {
+      console.error('[fs-ops] 清理回收站文件失败:', name, err);
+    }
+  }
+}
+
 export function emptyTrashDir(): void {
   const root = getLibraryRoot();
   const trashDir = path.join(root, '.lumibox', 'trash');

@@ -3,11 +3,17 @@ import path from 'path';
 import { BrowserWindow } from 'electron';
 import { getLibraryRoot } from './path-guard';
 import { isMediaFile, getMediaType } from './fs-ops';
-import { insertImage, deleteImageByPath, getImageByPath, updateImageMeta } from './database';
-import { getCachePath } from './thumbnail';
+import { insertImage, deleteImageByPath, getImageByPath, updateImageMeta, updateVideoMeta } from './database';
+import { probeVideoMetadata, pickRandomTimestamp } from './video-probe';
 
 let watcher: import('chokidar').FSWatcher | null = null;
 let scanning = false;
+
+/**
+ * 启动扫描:全量扫描 + chokidar 持续监听
+ * - 全量扫描:遍历库根所有媒体文件,写入数据库索引
+ * - chokidar 监听:文件 add/unlink/change 时实时更新索引并通知渲染层
+ */
 
 export async function startScan(win: BrowserWindow): Promise<void> {
   const root = getLibraryRoot();
@@ -32,16 +38,12 @@ export async function startScan(win: BrowserWindow): Promise<void> {
     if (!isMediaFile(filePath)) return;
     const rel = path.relative(root, filePath).replace(/\\/g, '/');
     deleteImageByPath(rel);
-    // 同步删除缩略图缓存
-    try { fs.unlinkSync(getCachePath(filePath)); } catch { /* 忽略 */ }
     win.webContents.send('image:changed', { type: 'unlink', path: rel });
   });
-  // 文件内容变化(如在文件资源管理器中替换/编辑图片):删除旧缩略图,更新元数据,通知渲染层刷新
+  // 文件内容变化(如在文件资源管理器中替换/编辑图片):更新元数据,通知渲染层刷新
   watcher.on('change', (filePath: string) => {
     if (!isMediaFile(filePath)) return;
     const rel = path.relative(root, filePath).replace(/\\/g, '/');
-    // 删除旧缩略图缓存,下次访问时重新生成
-    try { fs.unlinkSync(getCachePath(filePath)); } catch { /* 忽略不存在 */ }
     // 更新数据库元数据(mtime/size)
     try {
       const stat = fs.statSync(filePath);
@@ -63,9 +65,12 @@ async function fullScan(root: string, win: BrowserWindow): Promise<void> {
   const batchSize = 500;
   for (let i = 0; i < allFiles.length; i += batchSize) {
     const batch = allFiles.slice(i, i + batchSize);
-    for (const file of batch) {
-      indexImage(file);
-      current++;
+    // 视频元数据探查并发限制(避免 ffprobe 进程过多)
+    const probeConcurrency = 4;
+    for (let j = 0; j < batch.length; j += probeConcurrency) {
+      const slice = batch.slice(j, j + probeConcurrency);
+      await Promise.all(slice.map((file) => indexImageAsync(file)));
+      current += slice.length;
     }
     win.webContents.send('scan:progress', current, total);
     await new Promise((r) => setImmediate(r));
@@ -109,9 +114,41 @@ function indexImage(absolutePath: string): void {
   }
 }
 
-export function stopScan(): void {
-  if (watcher) {
-    watcher.close();
-    watcher = null;
+// 异步索引:视频额外探查元数据(分辨率/时长/帧率/码率/随机封面帧时间戳)
+async function indexImageAsync(absolutePath: string): Promise<void> {
+  const root = getLibraryRoot();
+  const rel = path.relative(root, absolutePath).replace(/\\/g, '/');
+  if (getImageByPath(rel)) return;
+  try {
+    const stat = fs.statSync(absolutePath);
+    const mediaType = getMediaType(absolutePath) ?? 'image';
+    const id = insertImage({
+      path: rel,
+      name: path.basename(absolutePath),
+      type: mediaType,
+      createdAt: stat.mtimeMs,
+      size: stat.size
+    });
+    // 视频探查元数据(仅写入数据库,不再预生成缩略图文件)
+    if (mediaType === 'video' && id > 0) {
+      try {
+        const probe = await probeVideoMetadata(absolutePath);
+        if (probe.width || probe.duration || probe.fps || probe.bitrate) {
+          const thumbnailTime = pickRandomTimestamp(absolutePath, probe.duration);
+          updateVideoMeta(id, {
+            width: probe.width,
+            height: probe.height,
+            duration: probe.duration,
+            fps: probe.fps,
+            bitrate: probe.bitrate,
+            videoThumbnailTime: thumbnailTime
+          });
+        }
+      } catch {
+        // 视频元数据探查失败,忽略(数据库仍保留基本信息)
+      }
+    }
+  } catch {
+    // 忽略无法访问的文件
   }
 }

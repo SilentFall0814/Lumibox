@@ -32,17 +32,9 @@ const api: LumiboxAPI = {
     purge: (trashId) => ipcRenderer.invoke('trash:purge', trashId),
     emptyTrash: () => ipcRenderer.invoke('trash:emptyTrash')
   },
-  tag: {
-    listTags: () => ipcRenderer.invoke('tag:listTags'),
-    createTag: (name) => ipcRenderer.invoke('tag:createTag', name),
-    attachTag: (imageId, tagId) => ipcRenderer.invoke('tag:attachTag', imageId, tagId),
-    detachTag: (imageId, tagId) => ipcRenderer.invoke('tag:detachTag', imageId, tagId),
-    listTagsByImage: (imageId) => ipcRenderer.invoke('tag:listTagsByImage', imageId)
-  },
   search: {
     byName: (query) => ipcRenderer.invoke('search:byName', query),
     byDateRange: (from, to) => ipcRenderer.invoke('search:byDateRange', from, to),
-    byTags: (tagIds) => ipcRenderer.invoke('search:byTags', tagIds),
     byExif: (camera, lens) => ipcRenderer.invoke('search:byExif', camera, lens)
   },
   undo: {

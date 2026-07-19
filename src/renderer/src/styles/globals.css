@@ -1,15 +1,216 @@
+/* DM Sans 拉丁字体(Google Fonts CDN),与 PingFang SC 配合实现 Apple HIG 风格 */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* 自定义字体:PingFang SC Semibold,应用于全软件所有文字 */
-/* font-weight: 100 900 让所有字重都用此字体文件,确保统一 */
+/* ============ 自定义字体 ============ */
+/* PingFang SC Semibold 应用于全软件所有中文文字 */
 @font-face {
   font-family: 'PingFang SC';
   src: url('../assets/PingFangSC-Semibold.ttf') format('truetype');
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
+}
+
+/* ============ Pinguo Design Tokens ============ */
+/* 来源:拾光盒设计稿 - Apple HIG 风格,品牌色 #007AFF (Apple System Blue) */
+/* 颜色架构双层:primitive palette 10-step + semantic tokens */
+:root {
+  /* ===== PRIMITIVE PALETTE (Light) ===== */
+  /* brand - Apple System Blue */
+  --brand-50: 232 242 255;
+  --brand-100: 207 229 255;
+  --brand-200: 159 203 255;
+  --brand-300: 102 171 255;
+  --brand-400: 46 141 255;
+  --brand-500: 0 122 255;   /* 主色 #007AFF */
+  --brand-600: 0 100 214;
+  --brand-700: 0 79 173;
+  --brand-800: 0 59 130;
+  --brand-900: 0 39 90;
+
+  /* background - Apple System Grays */
+  --background-50: 255 255 255;
+  --background-100: 247 247 250;
+  --background-200: 242 242 247;
+  --background-300: 229 229 234;
+  --background-400: 209 209 214;
+  --background-500: 174 174 178;
+  --background-600: 142 142 147;
+  --background-700: 58 58 60;
+  --background-800: 28 28 30;
+  --background-900: 0 0 0;
+
+  /* text */
+  --text-50: 245 245 247;
+  --text-100: 227 227 232;
+  --text-200: 199 199 204;
+  --text-300: 174 174 178;
+  --text-400: 142 142 147;
+  --text-500: 110 110 115;
+  --text-600: 72 72 74;
+  --text-700: 60 60 67;
+  --text-800: 29 29 31;
+  --text-900: 0 0 0;
+
+  /* icon */
+  --icon-50: 245 245 247;
+  --icon-100: 229 229 234;
+  --icon-200: 209 209 214;
+  --icon-300: 199 199 204;
+  --icon-400: 174 174 178;
+  --icon-500: 142 142 147;
+  --icon-600: 110 110 115;
+  --icon-700: 72 72 74;
+  --icon-800: 44 44 46;
+  --icon-900: 29 29 31;
+
+  /* state - Apple System Colors */
+  --state-success: 52 199 89;       /* #34C759 */
+  --state-success-dark: 48 209 88;
+  --state-success-surface: 233 249 238;
+  --state-success-foreground: 255 255 255;
+
+  --state-error: 255 59 48;          /* #FF3B30 */
+  --state-error-dark: 255 69 58;
+  --state-error-surface: 255 236 234;
+  --state-error-foreground: 255 255 255;
+
+  --state-warning: 255 149 0;        /* #FF9500 */
+
+  /* ===== SEMANTIC ROLES (Light) ===== */
+  --color-background: var(--background-50);
+  --color-foreground: var(--text-800);
+  --color-card: var(--background-50);
+  --color-card-foreground: var(--text-800);
+  --color-popover: var(--background-50);
+  --color-popover-foreground: var(--text-900);
+
+  --color-primary: var(--brand-500);
+  --color-primary-hover: var(--brand-600);
+  --color-primary-bg: var(--brand-50);
+  --color-primary-foreground: var(--background-50);
+
+  --color-secondary: var(--background-200);
+  --color-secondary-foreground: var(--text-800);
+  --color-muted: var(--background-200);
+  --color-muted-fg: var(--text-400);
+  --color-accent: var(--background-100);
+  --color-accent-foreground: var(--text-800);
+  --color-danger: var(--state-error);
+  --color-danger-foreground: var(--state-error-foreground);
+  --color-success: var(--state-success);
+  --color-success-foreground: var(--state-success-foreground);
+  --color-border: var(--background-300);
+  --color-input: var(--background-400);
+  --color-ring: var(--brand-500);
+
+  --color-icon: var(--icon-900);
+  --color-icon-muted: var(--icon-500);
+
+  /* sidebar */
+  --color-sidebar: var(--background-200);
+  --color-sidebar-foreground: var(--text-800);
+  --color-sidebar-primary: var(--brand-500);
+  --color-sidebar-primary-foreground: var(--background-50);
+  --color-sidebar-accent: var(--background-300);
+  --color-sidebar-accent-foreground: var(--text-800);
+  --color-sidebar-border: var(--background-300);
+  --color-sidebar-ring: var(--brand-500);
+
+  /* viewer (图片/视频查看器专属语义变量) */
+  --viewer-background: 0 0 0;
+  --viewer-toolbar: 28 28 30;     /* rgba 0.72 + blur 20px 毛玻璃 */
+  --viewer-foreground: 255 255 255;
+  --viewer-muted: 142 142 147;
+  --viewer-border: 58 58 60;
+
+  /* TYPOGRAPHY */
+  --font-sans: 'DM Sans', 'PingFang SC', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --tracking-normal: 0em;
+
+  /* RADIUS - 大圆角风格 */
+  --radius-sm: 0.5rem;     /* 8px */
+  --radius-md: 0.75rem;    /* 12px */
+  --radius-lg: 1.2rem;     /* 19.2px */
+  --radius-xl: 1.5rem;     /* 24px */
+
+  /* SHADOWS */
+  --shadow-2xs: 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05), 0 1px 3px -1px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 8px 24px -8px rgba(0, 0, 0, 0.08), 0 4px 8px -4px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 16px 40px -10px rgba(0, 0, 0, 0.10), 0 8px 16px -8px rgba(0, 0, 0, 0.06);
+  --shadow-2xl: 0 24px 64px -12px rgba(0, 0, 0, 0.12);
+
+  /* SPACING */
+  --spacing: 0.24rem;
+
+  /* 滚动条颜色 */
+  --scrollbar-thumb: var(--background-300);
+  --scrollbar-thumb-hover: var(--background-400);
+
+  color-scheme: light;
+}
+
+/* ===== SEMANTIC ROLES (Dark) - 纯黑 #000000 背景 ===== */
+.dark {
+  --color-background: var(--background-900);
+  --color-foreground: var(--text-50);
+  --color-card: var(--background-800);
+  --color-card-foreground: var(--text-50);
+  --color-popover: var(--background-700);
+  --color-popover-foreground: var(--text-50);
+
+  --color-primary: var(--brand-400);
+  --color-primary-hover: var(--brand-300);
+  --color-primary-bg: var(--brand-900);
+  --color-primary-foreground: var(--background-900);
+
+  --color-secondary: var(--background-800);
+  --color-secondary-foreground: var(--text-50);
+  --color-muted: var(--background-800);
+  --color-muted-fg: var(--text-400);
+  --color-accent: var(--background-700);
+  --color-accent-foreground: var(--text-50);
+  --color-danger: var(--state-error-dark);
+  --color-danger-foreground: var(--state-error-foreground);
+  --color-success: var(--state-success-dark);
+  --color-success-foreground: var(--state-success-foreground);
+  --color-border: var(--background-700);
+  --color-input: var(--background-700);
+  --color-ring: var(--brand-400);
+
+  --color-icon: var(--icon-50);
+  --color-icon-muted: var(--icon-500);
+
+  --color-sidebar: var(--background-800);
+  --color-sidebar-foreground: var(--text-50);
+  --color-sidebar-primary: var(--brand-400);
+  --color-sidebar-primary-foreground: var(--background-900);
+  --color-sidebar-accent: var(--background-700);
+  --color-sidebar-accent-foreground: var(--text-50);
+  --color-sidebar-border: var(--background-700);
+  --color-sidebar-ring: var(--brand-400);
+
+  --viewer-toolbar: 28 28 30;
+
+  --scrollbar-thumb: var(--background-700);
+  --scrollbar-thumb-hover: var(--background-600);
+
+  --shadow-2xs: 0 1px 2px -1px rgba(0, 0, 0, 0.30);
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.30);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.36), 0 1px 3px -1px rgba(0, 0, 0, 0.36);
+  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.44), 0 2px 4px -2px rgba(0, 0, 0, 0.36);
+  --shadow-lg: 0 8px 24px -8px rgba(0, 0, 0, 0.50), 0 4px 8px -4px rgba(0, 0, 0, 0.40);
+  --shadow-xl: 0 16px 40px -10px rgba(0, 0, 0, 0.55), 0 8px 16px -8px rgba(0, 0, 0, 0.44);
+  --shadow-2xl: 0 24px 64px -12px rgba(0, 0, 0, 0.60);
+
+  color-scheme: dark;
 }
 
 @layer base {
@@ -22,17 +223,22 @@
     padding: 0;
   }
   body {
-    font-family: 'PingFang SC', sans-serif;
+    font-family: var(--font-sans);
     font-size: 14px;
-    color: #1f2937;
-    background-color: #ffffff;
+    color: rgb(var(--color-foreground));
+    background-color: rgb(var(--color-background));
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     user-select: none;
     overflow: hidden;
+    /* 主题切换平滑过渡 */
+    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
-/* 自定义滚动条 */
+/* ============ Apple 风格滚动条 ============ */
+/* 8px 宽,4px 圆角,极简半透明 thumb */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -41,29 +247,232 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #e5e7eb;
+  background: rgba(0, 0, 0, 0.15);
   border-radius: 4px;
+  transition: background 0.2s;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #d1d5db;
+  background: rgba(0, 0, 0, 0.25);
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 
-/* 图片网格卡片 hover 效果 */
+/* ============ 毛玻璃材质 ============ */
+/* Apple 风格:rgba 0.72 + blur 20px + saturate 180% + inset 高光边 */
+.glass {
+  background-color: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+.dark .glass {
+  background-color: rgba(28, 28, 30, 0.72);
+}
+.glass-strong {
+  background-color: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+}
+.dark .glass-strong {
+  background-color: rgba(28, 28, 30, 0.86);
+}
+/* inset 高光边 - 用于卡片/工具栏边缘 */
+.glass-edge {
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.6),
+              0 1px 2px 0 rgba(0, 0, 0, 0.04);
+}
+.dark .glass-edge {
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.08),
+              0 1px 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* ============ 渐变边缘线 ============ */
+/* 侧栏右边缘、顶栏底边缘的柔和分隔线 */
+.edge-right {
+  position: relative;
+}
+.edge-right::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(to bottom,
+              rgba(0, 0, 0, 0) 0%,
+              rgba(0, 0, 0, 0.06) 20%,
+              rgba(0, 0, 0, 0.06) 80%,
+              rgba(0, 0, 0, 0) 100%);
+  pointer-events: none;
+}
+.dark .edge-right::after {
+  background: linear-gradient(to bottom,
+              rgba(255, 255, 255, 0) 0%,
+              rgba(255, 255, 255, 0.06) 20%,
+              rgba(255, 255, 255, 0.06) 80%,
+              rgba(255, 255, 255, 0) 100%);
+}
+.edge-bottom {
+  position: relative;
+}
+.edge-bottom::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(to right,
+              rgba(0, 0, 0, 0) 0%,
+              rgba(0, 0, 0, 0.06) 20%,
+              rgba(0, 0, 0, 0.06) 80%,
+              rgba(0, 0, 0, 0) 100%);
+  pointer-events: none;
+}
+.dark .edge-bottom::after {
+  background: linear-gradient(to right,
+              rgba(255, 255, 255, 0) 0%,
+              rgba(255, 255, 255, 0.06) 20%,
+              rgba(255, 255, 255, 0.06) 80%,
+              rgba(255, 255, 255, 0) 100%);
+}
+
+/* ============ 弹簧动效 ============ */
+/* Apple damping 1.0 / response 0.3-0.4s */
+.spring-transition {
+  transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1),
+              box-shadow 0.3s cubic-bezier(0.32, 0.72, 0, 1),
+              background-color 0.2s ease,
+              border-color 0.2s ease,
+              color 0.2s ease;
+}
+.spring-fast {
+  transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1),
+              background-color 0.15s ease,
+              color 0.15s ease;
+}
+
+/* ============ 图片网格卡片 ============ */
 .image-card {
-  transition: all 0.15s ease;
+  transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1),
+              box-shadow 0.3s cubic-bezier(0.32, 0.72, 0, 1),
+              outline-color 0.2s ease;
+  will-change: transform;
 }
 .image-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: scale(1.02);
+  box-shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.18),
+              0 4px 8px -4px rgba(0, 0, 0, 0.08);
+  z-index: 2;
 }
 .image-card.selected {
-  outline: 2px solid #2563eb;
+  outline: 2px solid rgb(var(--color-primary));
   outline-offset: -2px;
+  transform: scale(0.98);
 }
 
 /* 拖拽悬停高亮 */
 .drop-zone-active {
-  background-color: #eff6ff;
-  outline: 2px dashed #2563eb;
+  background-color: rgb(var(--color-primary-bg));
+  outline: 2px dashed rgb(var(--color-primary));
   outline-offset: -8px;
+}
+
+/* ============ 通用动画工具类 ============ */
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out both;
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+.animate-scale-in {
+  animation: scale-in 0.35s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+.animate-slide-in-right {
+  animation: slide-in-right 0.35s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+.animate-slide-in-bottom {
+  animation: slide-in-bottom 0.4s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+.animate-pop-in {
+  animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.animate-float {
+  animation: float 5s ease-in-out infinite;
+}
+.animate-shimmer {
+  animation: shimmer 1.6s linear infinite;
+}
+.animate-viewer-image-enter {
+  animation: viewer-image-enter 0.45s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes fade-in-up {
+  0% { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes scale-in {
+  0% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes slide-in-right {
+  0% { opacity: 0; transform: translateX(16px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+@keyframes slide-in-bottom {
+  0% { opacity: 0; transform: translateY(24px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes pop-in {
+  0% { opacity: 0; transform: scale(0.8); }
+  60% { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes shimmer {
+  0% { backgroundPosition: '-200% 0'; }
+  100% { backgroundPosition: '200% 0'; }
+}
+@keyframes viewer-image-enter {
+  0% { opacity: 0; transform: scale(0.96); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* 逐项淡入动画:用于列表项依次出现,stagger 40ms 间隔 */
+.stagger-item {
+  opacity: 0;
+  animation: fade-in-up 0.5s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+/* 按钮按下效果 - Apple 风格轻微缩放 */
+button:not(:disabled):active {
+  transform: scale(0.96);
+  transition: transform 0.1s ease;
+}
+
+/* 输入框聚焦平滑过渡 */
+input, textarea {
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* 视图切换淡入 */
+.view-transition {
+  animation: fade-in 0.25s ease-out;
+}
+
+/* 选中态勾选框 - 22px 圆形实心蓝圆+白勾 */
+.check-circle {
+  background: rgb(var(--color-primary));
+  box-shadow: 0 2px 6px rgba(0, 122, 255, 0.4),
+              inset 0 0 0 1px rgba(255, 255, 255, 0.2);
 }
