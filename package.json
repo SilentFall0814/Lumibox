@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit",
+    "lint:main": "tsc --noEmit -p tsconfig.node.json",
     "gen:icon": "node scripts/png-to-ico.js src/renderer/src/assets/logo.png build/icon.ico",
     "dist": "tsx scripts/package-to-dist.ts && electron-builder --prepackaged dist-package/Lumibox-win32-x64 --win nsis",
     "dist:installer": "electron-builder --prepackaged dist-package/Lumibox-win32-x64 --win nsis",
