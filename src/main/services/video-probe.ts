@@ -1,3 +1,7 @@
+import { createLogger } from './logger';
+
+const logger = createLogger('video-probe');
+
 export interface VideoProbeResult {
   width?: number;
   height?: number;
@@ -25,7 +29,7 @@ function getFfprobePath(): string | null {
       ffprobePathCache = realPath;
       return realPath;
     }
-  } catch { /* 忽略 */ }
+  } catch (e) { logger.warn('加载 ffprobe-static 失败', { err: String(e) }); }
   ffprobePathCache = null;
   return null;
 }
@@ -38,7 +42,7 @@ export function probeVideoMetadata(filePath: string): Promise<VideoProbeResult> 
   return new Promise((resolve) => {
     const ffprobePath = getFfprobePath();
     if (!ffprobePath) {
-      console.error('[video-probe] 未找到 ffprobe 可执行文件');
+      logger.error('未找到 ffprobe 可执行文件');
       resolve({});
       return;
     }
@@ -53,7 +57,7 @@ export function probeVideoMetadata(filePath: string): Promise<VideoProbeResult> 
       ];
       execFile(ffprobePath, args, { windowsHide: true }, (err, stdout, stderr) => {
         if (err) {
-          console.error('[video-probe] ffprobe 执行失败:', err.message);
+          logger.warn('ffprobe 执行失败', { err: err.message });
           resolve({});
           return;
         }
@@ -79,12 +83,12 @@ export function probeVideoMetadata(filePath: string): Promise<VideoProbeResult> 
                      (format.bit_rate ? Number(format.bit_rate) : undefined)
           });
         } catch (e) {
-          console.error('[video-probe] JSON 解析失败:', e);
+          logger.warn('ffprobe 输出 JSON 解析失败', { err: String(e) });
           resolve({});
         }
       });
     } catch (e) {
-      console.error('[video-probe] 调用异常:', e);
+      logger.warn('ffprobe 调用异常', { err: String(e) });
       resolve({});
     }
   });

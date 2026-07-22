@@ -2,6 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import { assertWithinLibrary, getLibraryRoot, resolveLibraryPath, isInsideLumibox } from './path-guard';
 import type { Album, MoveResult } from '../../shared/types';
+import { createLogger } from './logger';
+
+const logger = createLogger('fs-ops');
 
 export const IMAGE_EXTENSIONS = new Set([
   '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff', '.tif', '.heic', '.heif', '.avif', '.svg'
@@ -54,7 +57,7 @@ function countMediaInDir(dir: string): number {
   let count = 0;
   const walk = (d: string) => {
     let entries: fs.Dirent[];
-    try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch { return; }
+    try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch (e) { logger.warn('读取目录失败', { dir: d, err: String(e) }); return; }
     for (const entry of entries) {
       const full = path.join(d, entry.name);
       if (entry.isDirectory()) walk(full);
@@ -195,8 +198,8 @@ export function purgeTrashList(trashNames: string[]): void {
     const trashPath = path.join(trashDir, name);
     try {
       if (fs.existsSync(trashPath)) fs.rmSync(trashPath, { recursive: true, force: true });
-    } catch (err) {
-      console.error('[fs-ops] 清理回收站文件失败:', name, err);
+    } catch (e) {
+      logger.warn('清理回收站文件失败', { name, err: String(e) });
     }
   }
 }

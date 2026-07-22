@@ -3,6 +3,9 @@ import path from 'path';
 import { getTrashItem } from './database';
 import { getLibraryRoot } from './path-guard';
 import { VIDEO_EXTENSIONS } from './fs-ops';
+import { createLogger } from './logger';
+
+const logger = createLogger('trash-thumb');
 
 /**
  * 回收站缩略图内存缓存
@@ -54,8 +57,8 @@ export async function getTrashThumbnail(trashId: number): Promise<{ buffer: Buff
     accessOrder.set(trashId, Date.now());
 
     return { buffer, mime: 'image/jpeg' };
-  } catch (err) {
-    console.error('[trash-thumb] 生成缩略图失败:', trashPath, err);
+  } catch (e) {
+    logger.error('生成缩略图失败', { trashPath, err: String(e) });
     return null;
   }
 }
@@ -105,17 +108,18 @@ async function generateVideoThumb(absPath: string): Promise<Buffer | null> {
               .jpeg({ quality: 80, progressive: true })
               .toBuffer();
             resolve(jpgBuffer);
-          } catch {
-            // sharp 失败,直接返回 PNG
+          } catch (e) {
+            logger.warn('sharp 压缩失败,返回 PNG', { err: String(e) });
             resolve(pngBuffer);
           }
         })
-        .on('error', () => resolve(null));
+        .on('error', (e: Error) => { logger.warn('ffmpeg 流错误', { absPath, err: e.message }); resolve(null); });
 
       const stream = cmd.pipe();
       stream.on('data', (chunk: Buffer) => chunks.push(chunk));
-      stream.on('error', () => resolve(null));
-    } catch {
+      stream.on('error', (e: Error) => { logger.warn('ffmpeg 流错误', { absPath, err: e.message }); resolve(null); });
+    } catch (e) {
+      logger.warn('ffmpeg 抓帧异常', { absPath, err: String(e) });
       resolve(null);
     }
   });

@@ -5,6 +5,9 @@ import { getLibraryRoot } from './path-guard';
 import { isMediaFile, getMediaType } from './fs-ops';
 import { insertImage, deleteImageByPath, getImageByPath, updateImageMeta, updateVideoMeta } from './database';
 import { probeVideoMetadata, pickRandomTimestamp } from './video-probe';
+import { createLogger } from './logger';
+
+const logger = createLogger('scanner');
 
 let watcher: import('chokidar').FSWatcher | null = null;
 let scanning = false;
@@ -51,7 +54,7 @@ export async function startScan(win: BrowserWindow): Promise<void> {
       if (existing) {
         updateImageMeta(existing.id, stat.mtimeMs, stat.size);
       }
-    } catch { /* 忽略 */ }
+    } catch (e) { logger.warn('更新文件元数据失败', { filePath, err: String(e) }); }
     win.webContents.send('image:changed', { type: 'change', path: rel });
   });
   watcher.on('addDir', () => win.webContents.send('album:changed'));
@@ -83,7 +86,7 @@ function collectMediaFiles(dir: string): string[] {
   const result: string[] = [];
   const walk = (d: string) => {
     let entries: fs.Dirent[];
-    try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch { return; }
+    try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch (e) { logger.warn('读取目录失败', { dir: d, err: String(e) }); return; }
     for (const e of entries) {
       if (e.name === '.lumibox') continue;
       const full = path.join(d, e.name);
@@ -109,8 +112,8 @@ function indexImage(absolutePath: string): void {
       createdAt: stat.mtimeMs,
       size: stat.size
     });
-  } catch {
-    // 忽略无法访问的文件
+  } catch (e) {
+    logger.warn('索引文件失败', { absolutePath, err: String(e) });
   }
 }
 
@@ -145,8 +148,8 @@ async function indexImageAsync(absolutePath: string): Promise<void> {
             videoThumbnailTime: thumbnailTime
           });
         }
-      } catch {
-        // 视频元数据探查失败,忽略(数据库仍保留基本信息)
+      } catch (e) {
+        logger.warn('视频元数据探查失败', { absolutePath, err: String(e) });
       }
     } else if (mediaType === 'image' && id > 0) {
       // 图片:用 sharp 读取宽高(仅读头部,不解码全图,非常快)
@@ -156,11 +159,11 @@ async function indexImageAsync(absolutePath: string): Promise<void> {
         if (meta.width && meta.height) {
           updateVideoMeta(id, { width: meta.width, height: meta.height });
         }
-      } catch {
-        // sharp 读取失败,忽略(全屏查看时会走 on-demand 兜底)
+      } catch (e) {
+        logger.warn('sharp 读取图片尺寸失败', { absolutePath, err: String(e) });
       }
     }
-  } catch {
-    // 忽略无法访问的文件
+  } catch (e) {
+    logger.warn('索引文件失败', { absolutePath, err: String(e) });
   }
 }

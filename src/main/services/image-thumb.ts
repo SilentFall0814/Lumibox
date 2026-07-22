@@ -2,6 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import { getImageById } from './database';
 import { getLibraryRoot } from './path-guard';
+import { createLogger } from './logger';
+
+const logger = createLogger('image-thumb');
 
 /**
  * 图片缩略图内存缓存(零磁盘文件)
@@ -83,8 +86,8 @@ export async function getImageThumbnail(imageId: number): Promise<{ buffer: Buff
     accessOrder.set(imageId, Date.now());
 
     return { buffer, mime: 'image/jpeg' };
-  } catch (err) {
-    console.error('[image-thumb] 生成缩略图失败:', absPath, err);
+  } catch (e) {
+    logger.error('生成缩略图失败', { absPath, err: String(e) });
     return null;
   } finally {
     releaseSlot();

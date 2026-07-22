@@ -7,6 +7,11 @@ import { getCurrentLibrary } from './services/config';
 import { setLibraryRoot, resolveLibraryPath, isInsideLumibox, hasLibraryRoot } from './services/path-guard';
 import { openDatabase, initSchema, closeDatabase } from './services/database';
 import { startScan } from './services/scanner';
+import { createLogger } from './services/logger';
+
+const logger = createLogger('lumibox');
+const protocolLogger = createLogger('lumibox-protocol');
+const trashLogger = createLogger('trash');
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -172,8 +177,8 @@ function registerLumiboxProtocol(): void {
           'Cache-Control': isVideo ? 'no-cache' : 'public, max-age=604800, immutable'
         }
       });
-    } catch (err) {
-      console.error('[lumibox-protocol] 异常:', err);
+    } catch (e) {
+      protocolLogger.error('协议处理异常', { url: request.url, err: String(e) });
       return new Response('Error', { status: 500 });
     }
   });
@@ -227,10 +232,10 @@ function cleanupExpiredTrash(): void {
     const expired = purgeExpiredTrash(cutoff);
     if (expired.length > 0) {
       purgeTrashList(expired.map((e: { trashName: string }) => e.trashName));
-      console.log(`[trash] 自动清理了 ${expired.length} 个过期回收站项`);
+      trashLogger.info('自动清理过期回收站', { count: expired.length });
     }
-  } catch (err) {
-    console.error('[trash] 自动清理失败:', err);
+  } catch (e) {
+    trashLogger.error('自动清理失败', { err: String(e) });
   }
 }
 
@@ -247,10 +252,10 @@ function cleanupLegacyDiskCache(rootPath: string): void {
     const cacheDir = path.join(rootPath, '.lumibox', 'cache');
     if (fs.existsSync(cacheDir)) {
       fs.rmSync(cacheDir, { recursive: true, force: true });
-      console.log('[lumibox] 已清理旧版磁盘缩略图缓存:', cacheDir);
+      logger.info('已清理旧版磁盘缩略图缓存', { cacheDir });
     }
-  } catch (err) {
-    console.error('[lumibox] 清理旧缓存失败:', err);
+  } catch (e) {
+    logger.warn('清理旧缓存失败', { cacheDir, err: String(e) });
   }
 }
 
@@ -272,15 +277,15 @@ app.on('before-quit', () => {
   try {
     const { clearFrameCache } = require('./services/frame-cache');
     clearFrameCache();
-  } catch { /* 忽略 */ }
+  } catch (e) { logger.warn('清理缓存失败', { module: 'frame-cache', err: String(e) }); }
   // 清理图片缩略图内存缓存
   try {
     const { clearImageThumbCache } = require('./services/image-thumb');
     clearImageThumbCache();
-  } catch { /* 忽略 */ }
+  } catch (e) { logger.warn('清理缓存失败', { module: 'image-thumb', err: String(e) }); }
   // 清理回收站缩略图内存缓存
   try {
     const { clearTrashThumbCache } = require('./services/trash-thumb');
     clearTrashThumbCache();
-  } catch { /* 忽略 */ }
+  } catch (e) { logger.warn('清理缓存失败', { module: 'trash-thumb', err: String(e) }); }
 });

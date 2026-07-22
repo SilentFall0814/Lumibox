@@ -3,6 +3,9 @@ import { getLibraryRoot } from './path-guard';
 import { probeVideoMetadata, pickRandomTimestamp } from './video-probe';
 import path from 'path';
 import { updateVideoMeta } from './database';
+import { createLogger } from './logger';
+
+const logger = createLogger('frame-cache');
 
 /**
  * 视频帧内存缓存(零磁盘文件)
@@ -57,9 +60,9 @@ export async function getVideoFrame(imageId: number): Promise<{ buffer: Buffer; 
           bitrate: probe.bitrate,
           videoThumbnailTime: timestamp
         });
-      } catch { /* 忽略写入失败 */ }
-    } catch {
-      // probe 失败:用默认时间戳 1 秒
+      } catch (e) { logger.warn('写回视频元数据失败', { imageId, err: String(e) }); }
+    } catch (e) {
+      logger.warn('probe 失败,用默认时间戳', { absPath, err: String(e) });
       timestamp = 1;
     }
   } else if (img.videoThumbnailTime == null) {
@@ -115,18 +118,19 @@ async function captureFrame(absPath: string, timestamp: number): Promise<Buffer 
               .jpeg({ quality: 80, progressive: true })
               .toBuffer();
             resolve(jpgBuffer);
-          } catch {
-            // sharp 失败,直接返回 PNG
+          } catch (e) {
+            logger.warn('sharp 压缩失败,返回 PNG', { err: String(e) });
             resolve(pngBuffer);
           }
         })
-        .on('error', () => resolve(null));
+        .on('error', (e: Error) => { logger.warn('ffmpeg 流错误', { absPath, err: e.message }); resolve(null); });
 
       // 捕获 ffmpeg stdout 数据
       const stream = cmd.pipe();
       stream.on('data', (chunk: Buffer) => chunks.push(chunk));
-      stream.on('error', () => resolve(null));
-    } catch {
+      stream.on('error', (e: Error) => { logger.warn('ffmpeg 流错误', { absPath, err: e.message }); resolve(null); });
+    } catch (e) {
+      logger.warn('ffmpeg 抓帧异常', { absPath, err: String(e) });
       resolve(null);
     }
   });
