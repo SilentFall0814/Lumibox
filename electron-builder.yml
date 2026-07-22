@@ -1,0 +1,59 @@
+# electron-builder 配置文件
+# 通过 --prepackaged 复用 electron-forge package 的输出目录
+# 生成支持自定义安装路径的 NSIS 安装程序
+
+appId: com.lumibox.app
+productName: Lumibox
+copyright: © 2026 拾光盒 Lumibox · MIT 开源 · Made with care by SilentFall
+
+# 输出目录(electron-builder 会在此生成安装包)
+directories:
+  output: dist
+  buildResources: build
+
+# 应用元信息(显示在 Windows 系统属性中)
+# 此处仅用于元信息,实际打包内容由 --prepackaged 目录决定
+files: []
+
+# NSIS 安装程序配置
+win:
+  icon: build/icon.ico
+  # 显示在 Windows 资源管理器"商标"字段(对应控制面板中的发布者)
+  legalTrademarks: SilentFall
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+nsis:
+  # 非一键安装:显示完整安装向导(欢迎→路径选择→安装→完成)
+  oneClick: false
+  # 按用户安装(无需管理员权限,安装到 %LocalAppData%/Programs/Lumibox)
+  perMachine: false
+  # 允许用户自定义安装路径(核心需求)
+  allowToChangeInstallationDirectory: true
+  # 允许请求提权(若用户选择系统目录安装)
+  allowElevation: true
+  # 安装/卸载程序图标
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+  # 创建桌面快捷方式
+  createDesktopShortcut: true
+  # 创建开始菜单快捷方式
+  createStartMenuShortcut: true
+  # 快捷方式名称
+  shortcutName: Lumibox
+  # 开始菜单分组
+  menuCategory: Lumibox
+  # 卸载时清理用户数据(确保全新安装时无遗留测试数据)
+  deleteAppDataOnUninstall: true
+  # 安装完成后不自动启动应用(用户主动启动)
+  runAfterFinish: false
+  # 安装界面语言:简体中文优先,英文兜底
+  installerLanguages:
+    - zh_CN
+    - en_US
+  # 引用自定义 NSIS 脚本:安装前清空 %APPDATA%\Lumibox\(用户配置目录)
+  # 确保每次安装都是全新软件,无任何测试数据残留
+  include: build/installer.nsh

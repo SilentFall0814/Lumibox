@@ -3,6 +3,7 @@ out/
 .cache/
 .webpack/
 dist/
+dist-package/
 *.log
 .DS_Store
 # IDE
@@ -20,3 +21,6 @@ coverage/
 /APP_Logo.png
 /PingFangSC-Semibold.ttf
 /build/APP_Logo_rounded.png
+
+# 临时调试文件
+/错误图.png

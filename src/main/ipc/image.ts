@@ -108,6 +108,21 @@ export function registerImageHandlers(): void {
       } catch { /* 忽略更新失败 */ }
       return merged;
     }
+    // 图片:若数据库已存宽高,直接返回;否则用 sharp 实时读取并写回数据库
+    if (img.width && img.height) {
+      return { ...exif, width: img.width, height: img.height };
+    }
+    try {
+      const sharp = require('sharp');
+      const meta = await sharp(abs).metadata();
+      if (meta.width && meta.height) {
+        try {
+          const { updateVideoMeta } = require('../services/database');
+          updateVideoMeta(imageId, { width: meta.width, height: meta.height });
+        } catch { /* 忽略写回失败 */ }
+        return { ...exif, width: meta.width, height: meta.height };
+      }
+    } catch { /* sharp 读取失败,返回原始 exif */ }
     return exif;
   });
 

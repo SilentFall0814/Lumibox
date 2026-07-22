@@ -115,6 +115,7 @@ function indexImage(absolutePath: string): void {
 }
 
 // 异步索引:视频额外探查元数据(分辨率/时长/帧率/码率/随机封面帧时间戳)
+// 图片也读取尺寸(宽高)存入数据库,避免全屏查看时显示 "?x?"
 async function indexImageAsync(absolutePath: string): Promise<void> {
   const root = getLibraryRoot();
   const rel = path.relative(root, absolutePath).replace(/\\/g, '/');
@@ -146,6 +147,17 @@ async function indexImageAsync(absolutePath: string): Promise<void> {
         }
       } catch {
         // 视频元数据探查失败,忽略(数据库仍保留基本信息)
+      }
+    } else if (mediaType === 'image' && id > 0) {
+      // 图片:用 sharp 读取宽高(仅读头部,不解码全图,非常快)
+      try {
+        const sharp = require('sharp');
+        const meta = await sharp(absolutePath).metadata();
+        if (meta.width && meta.height) {
+          updateVideoMeta(id, { width: meta.width, height: meta.height });
+        }
+      } catch {
+        // sharp 读取失败,忽略(全屏查看时会走 on-demand 兜底)
       }
     }
   } catch {

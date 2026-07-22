@@ -16,8 +16,14 @@ function getFfprobePath(): string | null {
     const ffprobeStatic = require('ffprobe-static');
     const p = ffprobeStatic?.path;
     if (p && typeof p === 'string') {
-      ffprobePathCache = p;
-      return p;
+      // 修复:打包后 ffprobe-static 返回的路径指向 app.asar 内部,
+      // 但 child_process 无法从 asar 虚拟文件系统执行 .exe 文件。
+      // 必须将路径中的 app.asar 替换为 app.asar.unpacked,指向真实文件系统路径。
+      const realPath = p.includes('app.asar')
+        ? p.replace('app.asar', 'app.asar.unpacked')
+        : p;
+      ffprobePathCache = realPath;
+      return realPath;
     }
   } catch { /* 忽略 */ }
   ffprobePathCache = null;

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { toast } from 'sonner';
 import type { RootState, AppDispatch } from '../../store';
 import { setFullscreenImage } from '../../store/uiSlice';
+import { removeImages } from '../../store/imagesSlice';
 import { useKeyboard } from '../../hooks/useKeyboard';
 import { formatBytes, formatDuration } from '../../lib/utils';
 import type { ImageRecord } from '../../../../shared/types';
@@ -356,24 +358,55 @@ export default function FullscreenViewer() {
     dispatch(setFullscreenImage(allItems[newIndex].id));
   }, [currentIndex, allItems, dispatch]);
 
-  useKeyboard({
-    onEscape: close,
-    onNext: () => navigate('next'),
-    onPrev: () => navigate('prev'),
-    onSpace: () => setScale((s) => (s === 1 ? 2 : 1))
-  }, imageId !== null);
-
-  // 切换图片时重置缩放
-  useEffect(() => {
-    setScale(1);
-  }, [imageId]);
-
   // 3s 鼠标静止自动隐藏控件
   const showControlsTemporarily = useCallback(() => {
     setShowControls(true);
     if (hideTimer.current) clearTimeout(hideTimer.current);
     hideTimer.current = setTimeout(() => setShowControls(false), 3000);
   }, []);
+
+  // 删除当前图片(移到回收站,可撤销/恢复)
+  // 之前按钮没有 onClick,这里补上完整逻辑:调用 IPC 删除 → 从 store 移除 → 跳到下一张
+  // 必须在 useKeyboard 之前声明,否则会触发 "Cannot access before initialization"
+  const handleDelete = useCallback(async () => {
+    if (!currentImg) return;
+    try {
+      const result = await window.lumibox.image.deleteMany([currentImg.id]);
+      await window.lumibox.undo.pushUndo({
+        type: 'delete',
+        data: { trashIds: result.trashIds }
+      });
+      dispatch(removeImages([currentImg.id]));
+      // 删除后跳转:优先下一张,否则上一张,否则关闭
+      if (allItems.length > 1) {
+        const nextIdx = Math.min(currentIndex, allItems.length - 2);
+        const nextItem = allItems.filter((i) => i.id !== currentImg.id)[nextIdx];
+        if (nextItem) {
+          dispatch(setFullscreenImage(nextItem.id));
+        } else {
+          close();
+        }
+      } else {
+        close();
+      }
+      toast.success('已删除,可从回收站恢复');
+    } catch (e) {
+      toast.error('删除失败: ' + (e as Error).message);
+    }
+  }, [currentImg, allItems, currentIndex, dispatch, close]);
+
+  useKeyboard({
+    onEscape: close,
+    onNext: () => navigate('next'),
+    onPrev: () => navigate('prev'),
+    onSpace: () => setScale((s) => (s === 1 ? 2 : 1)),
+    onDelete: () => handleDelete()
+  }, imageId !== null);
+
+  // 切换图片时重置缩放
+  useEffect(() => {
+    setScale(1);
+  }, [imageId]);
 
   useEffect(() => {
     showControlsTemporarily();
@@ -400,15 +433,37 @@ export default function FullscreenViewer() {
     setScale((s) => Math.max(1, Math.min(5, s + delta)));
   }, []);
 
+  // 按需加载图片元数据(宽高)
+  // 扫描器只对视频读取分辨率;图片若数据库未存,打开全屏时实时读一次
+  const [imgMeta, setImgMeta] = useState<{ width?: number; height?: number } | null>(null);
+  useEffect(() => {
+    setImgMeta(null);
+    if (!currentImg || currentImg.type !== 'image') return;
+    if (currentImg.width && currentImg.height) return;
+    let cancelled = false;
+    window.lumibox.image.getExif(currentImg.id)
+      .then((meta: { width?: number; height?: number }) => {
+        if (!cancelled && meta && (meta.width || meta.height)) {
+          setImgMeta({ width: meta.width, height: meta.height });
+        }
+      })
+      .catch(() => { /* 忽略 */ });
+    return () => { cancelled = true; };
+  }, [currentImg]);
+
   if (!imageId || !currentImg) return null;
 
   const fullSrc = buildImageUrl(currentImg.path);
   const isVideo = currentImg.type === 'video';
 
   // 元信息:文件大小 + 分辨率(或视频规格)
+  // 图片:优先用数据库存储的 width/height,否则用按需加载的 imgMeta
+  // 视频:用数据库存储的 width/height/fps(扫描时已 probe)
+  const displayWidth = isVideo ? currentImg.width : (currentImg.width ?? imgMeta?.width);
+  const displayHeight = isVideo ? currentImg.height : (currentImg.height ?? imgMeta?.height);
   const metaInfo = isVideo
-    ? `${currentImg.width ?? '?'}×${currentImg.height ?? '?'} · ${currentImg.fps ?? '?'}fps · ${formatBytes(currentImg.size)}`
-    : `${currentImg.width ?? '?'}×${currentImg.height ?? '?'} · ${formatBytes(currentImg.size)}`;
+    ? `${displayWidth ?? '?'}×${displayHeight ?? '?'} · ${currentImg.fps ?? '?'}fps · ${formatBytes(currentImg.size)}`
+    : `${displayWidth ?? '?'}×${displayHeight ?? '?'} · ${formatBytes(currentImg.size)}`;
 
   return (
     <div
@@ -463,19 +518,14 @@ export default function FullscreenViewer() {
               <span className="hidden whitespace-nowrap truncate text-[12px] sm:inline" style={{ color: '#86868b' }}>{metaInfo}</span>
             </div>
           </div>
-          {/* 右侧:操作按钮组(36px 圆形) */}
+          {/* 右侧:操作按钮组(仅保留删除,移除收藏/分享/更多) */}
           <div className="flex items-center gap-1 shrink-0">
-            <button className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/10" aria-label="收藏" title="收藏">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>
-            </button>
-            <button className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/10" aria-label="分享" title="分享">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98" /></svg>
-            </button>
-            <button className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/10" aria-label="删除" title="删除">
+            <button
+              onClick={handleDelete}
+              className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/10"
+              aria-label="删除" title="删除 (Del)"
+            >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-            </button>
-            <button className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-white/10" aria-label="更多" title="更多">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>
             </button>
           </div>
         </div>

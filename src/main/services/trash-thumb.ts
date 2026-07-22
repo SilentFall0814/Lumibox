@@ -75,7 +75,13 @@ async function generateImageThumb(absPath: string): Promise<Buffer | null> {
 async function generateVideoThumb(absPath: string): Promise<Buffer | null> {
   const ffmpegPath = require('ffmpeg-static');
   const ffmpeg = require('fluent-ffmpeg');
-  ffmpeg.setFfmpegPath(ffmpegPath);
+  // 修复:打包后 ffmpeg-static 返回的路径指向 app.asar 内部,
+  // 但 child_process 无法从 asar 虚拟文件系统执行 .exe 文件。
+  // 必须将路径中的 app.asar 替换为 app.asar.unpacked,指向真实文件系统路径。
+  const realFfmpegPath = typeof ffmpegPath === 'string' && ffmpegPath.includes('app.asar')
+    ? ffmpegPath.replace('app.asar', 'app.asar.unpacked')
+    : ffmpegPath;
+  ffmpeg.setFfmpegPath(realFfmpegPath);
 
   return new Promise<Buffer | null>((resolve) => {
     const chunks: Buffer[] = [];
