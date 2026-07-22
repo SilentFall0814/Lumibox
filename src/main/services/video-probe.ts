@@ -10,14 +10,47 @@ export interface VideoProbeResult {
   bitrate?: number;
 }
 
+// === 可测试性:原生模块加载器(模块级变量,测试可注入) ===
+type FfprobeStatic = { path?: string };
+type FfprobeLoader = () => FfprobeStatic;
+type ExecFileRunner = (
+  file: string,
+  args: string[],
+  opts: { windowsHide: boolean },
+  cb: (err: Error | null, stdout: string, stderr: string) => void
+) => void;
+
+// ffprobe-static 加载器:默认通过 require 加载,测试时可注入 mock
+let ffprobeLoader: FfprobeLoader = () => require('ffprobe-static');
+// execFile 执行器:默认通过 require 加载 child_process,测试时可注入 mock
+let execFileRunner: ExecFileRunner = (file, args, opts, cb) => {
+  const { execFile } = require('child_process');
+  return execFile(file, args, opts, cb);
+};
+
+/** 测试用:注入 ffprobe 加载器 */
+export function __setFfprobeLoaderForTest(loader: FfprobeLoader): void {
+  ffprobeLoader = loader;
+}
+
+/** 测试用:注入 execFile 执行器 */
+export function __setExecFileForTest(runner: ExecFileRunner): void {
+  execFileRunner = runner;
+}
+
+/** 测试用:重置路径缓存 */
+export function __resetForTesting(): void {
+  ffprobePathCache = null;
+}
+
 // 缓存 ffprobe 可执行文件路径,避免每次调用都 require
 // ffprobe-static 包导出 { path, version } 对象
 let ffprobePathCache: string | null = null;
 
-function getFfprobePath(): string | null {
+export function getFfprobePath(): string | null {
   if (ffprobePathCache !== null) return ffprobePathCache;
   try {
-    const ffprobeStatic = require('ffprobe-static');
+    const ffprobeStatic = ffprobeLoader();
     const p = ffprobeStatic?.path;
     if (p && typeof p === 'string') {
       // 修复:打包后 ffprobe-static 返回的路径指向 app.asar 内部,
@@ -47,7 +80,6 @@ export function probeVideoMetadata(filePath: string): Promise<VideoProbeResult> 
       return;
     }
     try {
-      const { execFile } = require('child_process') as typeof import('child_process');
       const args = [
         '-v', 'error',
         '-select_streams', 'v:0',
@@ -55,7 +87,7 @@ export function probeVideoMetadata(filePath: string): Promise<VideoProbeResult> 
         '-of', 'json',
         filePath
       ];
-      execFile(ffprobePath, args, { windowsHide: true }, (err, stdout, stderr) => {
+      execFileRunner(ffprobePath, args, { windowsHide: true }, (err, stdout, stderr) => {
         if (err) {
           logger.warn('ffprobe 执行失败', { err: err.message });
           resolve({});
@@ -110,7 +142,7 @@ export function pickRandomTimestamp(filePath: string, duration?: number): number
   return Math.round((start + rand * (end - start)) * 100) / 100;
 }
 
-function hashString(s: string): number {
+export function hashString(s: string): number {
   let h = 0;
   for (let i = 0; i < s.length; i++) {
     h = ((h << 5) - h + s.charCodeAt(i)) | 0;
@@ -118,7 +150,7 @@ function hashString(s: string): number {
   return Math.abs(h);
 }
 
-function seededRandom(seed: number): number {
+export function seededRandom(seed: number): number {
   // 简单的 LCG 随机数生成器
   const x = Math.sin(seed) * 10000;
   return x - Math.floor(x);
