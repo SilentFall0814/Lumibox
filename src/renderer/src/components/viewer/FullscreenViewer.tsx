@@ -14,10 +14,11 @@ function buildImageUrl(relPath: string): string {
 }
 
 // ============ 自定义视频播放器 ============
-function VideoPlayer({ src, onNext, onPrev, fileName, meta }: {
+function VideoPlayer({ src, onNext, onPrev, onClose, fileName, meta }: {
   src: string;
   onNext: () => void;
   onPrev: () => void;
+  onClose: () => void;
   fileName: string;
   meta: string;
 }) {
@@ -179,6 +180,17 @@ function VideoPlayer({ src, onNext, onPrev, fileName, meta }: {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 min-w-0 flex-1">
+          {/* 返回按钮:与图片放大查看一致 */}
+          <button
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-white/10"
+            aria-label="返回图库"
+            title="关闭 (Esc)"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
           <span className="truncate text-[14px] font-medium" style={{ color: '#f5f5f7' }}>{fileName}</span>
           <span className="truncate text-[12px]" style={{ color: '#86868b' }}>{meta}</span>
         </div>
@@ -481,6 +493,7 @@ export default function FullscreenViewer() {
           meta={metaInfo}
           onNext={() => navigate('next')}
           onPrev={() => navigate('prev')}
+          onClose={close}
         />
       ) : (
         <ImageViewer src={fullSrc} scale={scale} onScaleChange={setScale} />

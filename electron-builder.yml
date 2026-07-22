@@ -32,8 +32,12 @@ nsis:
   perMachine: false
   # 允许用户自定义安装路径(核心需求)
   allowToChangeInstallationDirectory: true
-  # 允许请求提权(若用户选择系统目录安装)
-  allowElevation: true
+  # 禁止请求提权:perMachine=false 的所有操作(安装到用户目录、创建用户级
+  # 快捷方式、清理 %APPDATA%)都不需要管理员权限。
+  # 若设为 true,electron-builder 会引入 UAC 插件并将清单设为 requireAdministrator,
+  # 导致未签名的安装包双击时 UAC 提权进程创建失败 → 安装程序静默不启动。
+  # 设为 false 后清单为 asInvoker,双击即可正常启动。
+  allowElevation: false
   # 安装/卸载程序图标
   installerIcon: build/icon.ico
   uninstallerIcon: build/icon.ico

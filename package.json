@@ -1,7 +1,7 @@
 {
   "name": "lumibox",
   "productName": "Lumibox",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "拾光盒 - 本地优先的桌面相册管理系统",
   "main": ".webpack/main",
   "scripts": {

@@ -4,6 +4,7 @@ out/
 .webpack/
 dist/
 dist-package/
+dist-pkg-*/
 *.log
 .DS_Store
 # IDE

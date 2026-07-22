@@ -10,7 +10,6 @@ import logoUrl from '../../assets/logo.png';
  * - slogan "把每一段时光,妥帖收存。"
  * - 副文案 "本地优先 · 隐私守护 · 极速浏览"
  * - 48px 胶囊形主 CTA "选择库目录"
- * - "了解拾光盒 ›" 次要链接
  * - 底部说明 "所有照片仅存储于本机"
  * - stagger fade-in-up 入场
  */
@@ -127,14 +126,6 @@ export default function LibraryPicker() {
               选择库目录
             </>
           )}
-        </button>
-
-        {/* 次要链接 - 了解拾光盒 */}
-        <button
-          className="mt-1 text-[13px] text-muted-fg transition-colors hover:text-foreground animate-fade-in-up"
-          style={{ animationDelay: '400ms' }}
-        >
-          了解拾光盒 ›
         </button>
       </div>
 

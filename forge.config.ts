@@ -155,8 +155,8 @@ const config: ForgeConfig = {
     // 版权信息
     copyright: '© 2026 拾光盒 Lumibox · MIT 开源 · Made with care by SilentFall',
     // 版本描述
-    appVersion: '1.0.0',
-    buildVersion: '1.0.0',
+    appVersion: '1.0.1',
+    buildVersion: '1.0.1',
     // 打包前运行 npm prune --production,移除 devDependencies,仅保留运行时依赖
     // 必须配合下方的 ignore 一起使用,确保 externals 声明的原生模块被保留
     prune: true,

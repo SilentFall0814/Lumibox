@@ -28,7 +28,8 @@ export default function AboutPage() {
     <div
       className="relative h-full w-full overflow-y-auto overflow-x-hidden animate-fade-in"
       style={{
-        background: 'linear-gradient(180deg, var(--muted) 0%, var(--background) 100%)'
+        // 渐变背景:需用 rgb() 包裹,--color-muted/--color-background 值为 RGB 三元组
+        background: 'linear-gradient(180deg, rgb(var(--color-muted)) 0%, rgb(var(--color-background)) 100%)'
       }}
     >
       {/* 左上角 36px 圆形返回按钮 */}
@@ -49,7 +50,8 @@ export default function AboutPage() {
           <div
             className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-[1.5rem] animate-float"
             style={{
-              boxShadow: '0 20px 50px color-mix(in srgb, var(--primary) 25%, transparent)'
+              // logo 阴影需用 rgb() 包裹,--color-primary 值为 RGB 三元组
+              boxShadow: '0 20px 50px color-mix(in srgb, rgb(var(--color-primary)) 25%, transparent)'
             }}
           >
             <img
@@ -74,11 +76,11 @@ export default function AboutPage() {
             Lumibox
           </p>
           <div className="h-2" />
-          <p className="text-center text-[13px] text-muted-fg">版本 V1.0.0</p>
+          <p className="text-center text-[13px] text-muted-fg">版本 V1.0.1</p>
           <div className="h-3" />
           <p
-            className="text-center text-[15px] font-normal"
-            style={{ color: 'var(--text-500)', maxWidth: '400px' }}
+            className="text-center text-[15px] font-normal text-muted-fg"
+            style={{ maxWidth: '400px' }}
           >
             本地优先的照片与视频管理,把回忆留在身边。
           </p>
@@ -95,18 +97,14 @@ export default function AboutPage() {
           {/* 卡1: 本地优先 - 蓝色盾牌 */}
           <div className="rounded-lg border border-border bg-background p-6">
             <div
-              className="mb-4 flex h-8 w-8 items-center justify-center rounded-full"
-              style={{ background: 'color-mix(in srgb, var(--primary) 10%, transparent)' }}
+              className="mb-4 flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               </svg>
             </div>
             <h3 className="text-[15px] font-semibold text-foreground">本地优先</h3>
-            <p
-              className="mt-2 text-[13px] font-normal leading-[1.5] line-clamp-3"
-              style={{ color: 'var(--text-500)' }}
-            >
+            <p className="mt-2 text-[13px] font-normal leading-[1.5] line-clamp-3 text-muted-fg">
               所有照片仅存于本机,无需联网,永不上传。
             </p>
           </div>
@@ -114,38 +112,30 @@ export default function AboutPage() {
           {/* 卡2: 隐私守护 - 绿色锁 */}
           <div className="rounded-lg border border-border bg-background p-6">
             <div
-              className="mb-4 flex h-8 w-8 items-center justify-center rounded-full"
-              style={{ background: 'color-mix(in srgb, var(--success) 10%, transparent)' }}
+              className="mb-4 flex h-8 w-8 items-center justify-center rounded-full bg-success/10 text-success"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
             </div>
             <h3 className="text-[15px] font-semibold text-foreground">隐私守护</h3>
-            <p
-              className="mt-2 text-[13px] font-normal leading-[1.5] line-clamp-3"
-              style={{ color: 'var(--text-500)' }}
-            >
+            <p className="mt-2 text-[13px] font-normal leading-[1.5] line-clamp-3 text-muted-fg">
               无云端、无追踪、无广告,你的回忆只属于你。
             </p>
           </div>
 
-          {/* 卡3: 极速浏览 - 紫色闪电 */}
+          {/* 卡3: 极速浏览 - 橙色闪电 */}
           <div className="rounded-lg border border-border bg-background p-6">
             <div
-              className="mb-4 flex h-8 w-8 items-center justify-center rounded-full"
-              style={{ background: 'color-mix(in srgb, var(--chart-5) 10%, transparent)' }}
+              className="mb-4 flex h-8 w-8 items-center justify-center rounded-full bg-warning/10 text-warning"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--chart-5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
               </svg>
             </div>
             <h3 className="text-[15px] font-semibold text-foreground">极速浏览</h3>
-            <p
-              className="mt-2 text-[13px] font-normal leading-[1.5] line-clamp-3"
-              style={{ color: 'var(--text-500)' }}
-            >
+            <p className="mt-2 text-[13px] font-normal leading-[1.5] line-clamp-3 text-muted-fg">
               原生渲染与懒加载,万张图库依旧流畅。
             </p>
           </div>
@@ -215,6 +205,23 @@ export default function AboutPage() {
                 QQ
               </dt>
               <dd className="text-foreground tabular-nums">3552931982</dd>
+
+              <dt className="flex items-center gap-2 text-muted-fg">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+                </svg>
+                GitHub
+              </dt>
+              <dd>
+                <a
+                  href="https://github.com/SilentFall0814"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary transition-opacity hover:opacity-70"
+                >
+                  github.com/SilentFall0814
+                </a>
+              </dd>
             </dl>
           </div>
         </div>
@@ -227,32 +234,9 @@ export default function AboutPage() {
           <h4 className="mb-3 text-[13px] font-semibold uppercase tracking-[0.06em] text-muted-fg">
             致谢
           </h4>
-          <p
-            className="text-[13px] font-normal leading-[1.6]"
-            style={{ color: 'var(--text-500)' }}
-          >
+          <p className="text-[13px] font-normal leading-[1.6] text-muted-fg">
             感谢所有开源贡献者,以及让拾光盒成为可能的优秀开源项目。
           </p>
-        </div>
-
-        {/* 间距 48px */}
-        <div className="h-12" />
-
-        {/* 7. 底部:版权 + 开源许可链接 */}
-        <div
-          className="flex flex-col items-center gap-2 animate-fade-in-up"
-          style={{ animationDelay: '600ms' }}
-        >
-          <p className="text-[12px]" style={{ color: 'var(--text-300)' }}>
-            © 2026 拾光盒 Lumibox · MIT 开源 · Made with care by SilentFall
-          </p>
-          <a
-            href="#"
-            onClick={(e) => e.preventDefault()}
-            className="text-[13px] font-medium text-primary transition-opacity hover:opacity-70 focus:outline-none focus-visible:underline"
-          >
-            查看开源许可
-          </a>
         </div>
       </div>
     </div>
