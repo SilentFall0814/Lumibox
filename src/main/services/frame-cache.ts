@@ -19,6 +19,37 @@ const MAX_ENTRIES = 200; // 最多缓存 200 个视频帧,约占用 100MB 内存
 const cache = new Map<number, { buffer: Buffer; ts: number }>();
 const accessOrder = new Map<number, number>(); // imageId -> 最后访问时间戳
 
+// === 可测试性:原生模块加载器(模块级变量,测试可注入) ===
+type FfmpegPathLoader = () => string;
+type FfmpegLibLoader = () => any;
+type SharpLoader = () => any;
+
+// 默认通过 require 加载原生模块,测试时可注入 mock
+let ffmpegPathLoader: FfmpegPathLoader | null = () => require('ffmpeg-static');
+let ffmpegLibLoader: FfmpegLibLoader | null = () => require('fluent-ffmpeg');
+let sharpLoader: SharpLoader | null = () => require('sharp');
+
+/** 测试用:注入 ffmpeg-static 路径加载器(传 null 恢复默认) */
+export function __setFfmpegPathLoaderForTest(loader: FfmpegPathLoader | null): void {
+  ffmpegPathLoader = loader;
+}
+
+/** 测试用:注入 fluent-ffmpeg 库加载器(传 null 恢复默认) */
+export function __setFfmpegLibLoaderForTest(loader: FfmpegLibLoader | null): void {
+  ffmpegLibLoader = loader;
+}
+
+/** 测试用:注入 sharp 库加载器(传 null 恢复默认) */
+export function __setSharpLoaderForTest(loader: SharpLoader | null): void {
+  sharpLoader = loader;
+}
+
+/** 测试用:重置缓存和访问顺序(不影响加载器,加载器需单独复位) */
+export function __resetForTesting(): void {
+  cache.clear();
+  accessOrder.clear();
+}
+
 /**
  * 获取视频帧 Buffer
  * - 命中内存缓存:直接返回
@@ -85,8 +116,9 @@ export async function getVideoFrame(imageId: number): Promise<{ buffer: Buffer; 
 
 /** 调用 ffmpeg 抓帧,用 sharp 压缩为 JPEG Buffer */
 async function captureFrame(absPath: string, timestamp: number): Promise<Buffer | null> {
-  const ffmpegPath = require('ffmpeg-static');
-  const ffmpeg = require('fluent-ffmpeg');
+  // 通过加载器获取原生模块(测试时可注入 mock;生产环境通过 require 加载)
+  const ffmpegPath = ffmpegPathLoader!();
+  const ffmpeg = ffmpegLibLoader!();
   // 修复:打包后 ffmpeg-static 返回的路径指向 app.asar 内部,
   // 但 child_process 无法从 asar 虚拟文件系统执行 .exe 文件。
   // 必须将路径中的 app.asar 替换为 app.asar.unpacked,指向真实文件系统路径。
@@ -112,7 +144,7 @@ async function captureFrame(absPath: string, timestamp: number): Promise<Buffer 
           }
           const pngBuffer = Buffer.concat(chunks);
           try {
-            const sharp = require('sharp');
+            const sharp = sharpLoader!();
             const jpgBuffer = await sharp(pngBuffer)
               .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
               .jpeg({ quality: 80, progressive: true })
