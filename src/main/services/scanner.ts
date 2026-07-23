@@ -12,6 +12,24 @@ const logger = createLogger('scanner');
 let watcher: import('chokidar').FSWatcher | null = null;
 let scanning = false;
 
+// === 可测试性:原生模块加载器(模块级变量,测试可注入) ===
+type SharpLoader = () => any;
+let sharpLoader: SharpLoader | null = () => require('sharp');
+
+/** 测试用:注入 sharp 加载器(传 null 恢复默认) */
+export function __setSharpLoaderForTest(loader: SharpLoader | null): void {
+  sharpLoader = loader;
+}
+
+/** 测试用:重置模块级状态(scanning / watcher) */
+export function __resetForTesting(): void {
+  scanning = false;
+  if (watcher) {
+    watcher.close();
+    watcher = null;
+  }
+}
+
 /**
  * 启动扫描:全量扫描 + chokidar 持续监听
  * - 全量扫描:遍历库根所有媒体文件,写入数据库索引
@@ -82,7 +100,7 @@ async function fullScan(root: string, win: BrowserWindow): Promise<void> {
   win.webContents.send('scan:done');
 }
 
-function collectMediaFiles(dir: string): string[] {
+export function collectMediaFiles(dir: string): string[] {
   const result: string[] = [];
   const walk = (d: string) => {
     let entries: fs.Dirent[];
@@ -98,7 +116,7 @@ function collectMediaFiles(dir: string): string[] {
   return result;
 }
 
-function indexImage(absolutePath: string): void {
+export function indexImage(absolutePath: string): void {
   const root = getLibraryRoot();
   const rel = path.relative(root, absolutePath).replace(/\\/g, '/');
   if (getImageByPath(rel)) return;
@@ -119,7 +137,7 @@ function indexImage(absolutePath: string): void {
 
 // 异步索引:视频额外探查元数据(分辨率/时长/帧率/码率/随机封面帧时间戳)
 // 图片也读取尺寸(宽高)存入数据库,避免全屏查看时显示 "?x?"
-async function indexImageAsync(absolutePath: string): Promise<void> {
+export async function indexImageAsync(absolutePath: string): Promise<void> {
   const root = getLibraryRoot();
   const rel = path.relative(root, absolutePath).replace(/\\/g, '/');
   if (getImageByPath(rel)) return;
@@ -154,7 +172,7 @@ async function indexImageAsync(absolutePath: string): Promise<void> {
     } else if (mediaType === 'image' && id > 0) {
       // 图片:用 sharp 读取宽高(仅读头部,不解码全图,非常快)
       try {
-        const sharp = require('sharp');
+        const sharp = sharpLoader!();
         const meta = await sharp(absolutePath).metadata();
         if (meta.width && meta.height) {
           updateVideoMeta(id, { width: meta.width, height: meta.height });

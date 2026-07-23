@@ -57,6 +57,7 @@ export function createSharpMock(opts: {
   metadata?: { width: number; height: number };
   throw?: Error;
 }) {
+  // throw 选项表示 sharp 整体加载/调用失败,所有异步方法(toBuffer/metadata)都应 reject
   const toBuffer = vi.fn(() =>
     opts.throw
       ? Promise.reject(opts.throw)
@@ -66,7 +67,9 @@ export function createSharpMock(opts: {
     resize: vi.fn(() => chain),
     jpeg: vi.fn(() => chain),
     metadata: vi.fn(() =>
-      Promise.resolve(opts.metadata ?? { width: 1920, height: 1080 })
+      opts.throw
+        ? Promise.reject(opts.throw)
+        : Promise.resolve(opts.metadata ?? { width: 1920, height: 1080 })
     ),
     toBuffer
   };
