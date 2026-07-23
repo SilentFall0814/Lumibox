@@ -20,6 +20,37 @@ const THUMB_WIDTH = 400; // 缩略图宽度
 const cache = new Map<number, { buffer: Buffer; ts: number }>();
 const accessOrder = new Map<number, number>();
 
+// === 可测试性:原生模块加载器(模块级变量,测试可注入) ===
+type FfmpegPathLoader = () => string;
+type FfmpegLibLoader = () => any;
+type SharpLoader = () => any;
+
+// 默认通过 require 加载原生模块,测试时可注入 mock
+let ffmpegPathLoader: FfmpegPathLoader | null = () => require('ffmpeg-static');
+let ffmpegLibLoader: FfmpegLibLoader | null = () => require('fluent-ffmpeg');
+let sharpLoader: SharpLoader | null = () => require('sharp');
+
+/** 测试用:注入 ffmpeg-static 路径加载器(传 null 恢复默认) */
+export function __setFfmpegPathLoaderForTest(loader: FfmpegPathLoader | null): void {
+  ffmpegPathLoader = loader;
+}
+
+/** 测试用:注入 fluent-ffmpeg 库加载器(传 null 恢复默认) */
+export function __setFfmpegLibLoaderForTest(loader: FfmpegLibLoader | null): void {
+  ffmpegLibLoader = loader;
+}
+
+/** 测试用:注入 sharp 库加载器(传 null 恢复默认) */
+export function __setSharpLoaderForTest(loader: SharpLoader | null): void {
+  sharpLoader = loader;
+}
+
+/** 测试用:重置缓存和访问顺序(不影响加载器,加载器需单独复位) */
+export function __resetForTesting(): void {
+  cache.clear();
+  accessOrder.clear();
+}
+
 /**
  * 获取回收站项目的缩略图 Buffer
  * - 命中内存缓存:直接返回
@@ -65,7 +96,7 @@ export async function getTrashThumbnail(trashId: number): Promise<{ buffer: Buff
 
 /** 图片缩略图:用 sharp 异步生成(不阻塞主进程) */
 async function generateImageThumb(absPath: string): Promise<Buffer | null> {
-  const sharp = require('sharp');
+  const sharp = sharpLoader!();
   // sharp 会根据文件签名自动识别格式(包括 HEIC/WEBP 等)
   const buffer = await sharp(absPath)
     .resize(THUMB_WIDTH, THUMB_WIDTH, { fit: 'inside', withoutEnlargement: true })
@@ -76,8 +107,8 @@ async function generateImageThumb(absPath: string): Promise<Buffer | null> {
 
 /** 视频缩略图:用 ffmpeg 抓取第 1 秒帧 + sharp 压缩 */
 async function generateVideoThumb(absPath: string): Promise<Buffer | null> {
-  const ffmpegPath = require('ffmpeg-static');
-  const ffmpeg = require('fluent-ffmpeg');
+  const ffmpegPath = ffmpegPathLoader!();
+  const ffmpeg = ffmpegLibLoader!();
   // 修复:打包后 ffmpeg-static 返回的路径指向 app.asar 内部,
   // 但 child_process 无法从 asar 虚拟文件系统执行 .exe 文件。
   // 必须将路径中的 app.asar 替换为 app.asar.unpacked,指向真实文件系统路径。
@@ -102,7 +133,7 @@ async function generateVideoThumb(absPath: string): Promise<Buffer | null> {
           }
           const pngBuffer = Buffer.concat(chunks);
           try {
-            const sharp = require('sharp');
+            const sharp = sharpLoader!();
             const jpgBuffer = await sharp(pngBuffer)
               .resize(THUMB_WIDTH, THUMB_WIDTH, { fit: 'inside', withoutEnlargement: true })
               .jpeg({ quality: 80, progressive: true })
